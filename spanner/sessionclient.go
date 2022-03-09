@@ -1,19 +1,3 @@
-/*
-Copyright 2019 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package spanner
 
 import (
@@ -44,11 +28,10 @@ type clientIDGenerator struct {
 	ids map[string]int
 }
 
-func newClientIDGenerator() *clientIDGenerator {
+func gologoo__newClientIDGenerator_829b5d6d60227b496d673506b210fee2() *clientIDGenerator {
 	return &clientIDGenerator{ids: make(map[string]int)}
 }
-
-func (cg *clientIDGenerator) nextID(database string) string {
+func (cg *clientIDGenerator) gologoo__nextID_829b5d6d60227b496d673506b210fee2(database string) string {
 	cg.mu.Lock()
 	defer cg.mu.Unlock()
 	var id int
@@ -61,32 +44,13 @@ func (cg *clientIDGenerator) nextID(database string) string {
 	return fmt.Sprintf("client-%d", id)
 }
 
-// sessionConsumer is passed to the batchCreateSessions method and will receive
-// the sessions that are created as they become available. A sessionConsumer
-// implementation must be safe for concurrent use.
-//
-// The interface is implemented by sessionPool and is used for testing the
-// sessionClient.
 type sessionConsumer interface {
-	// sessionReady is called when a session has been created and is ready for
-	// use.
 	sessionReady(s *session)
-
-	// sessionCreationFailed is called when the creation of a sub-batch of
-	// sessions failed. The numSessions argument specifies the number of
-	// sessions that could not be created as a result of this error. A
-	// consumer may receive multiple errors per batch.
 	sessionCreationFailed(err error, numSessions int32)
 }
-
-// sessionClient creates sessions for a database, either in batches or one at a
-// time. Each session will be affiliated with a gRPC channel. sessionClient
-// will ensure that the sessions that are created are evenly distributed over
-// all available channels.
 type sessionClient struct {
-	mu     sync.Mutex
-	closed bool
-
+	mu            sync.Mutex
+	closed        bool
 	connPool      gtransport.ConnPool
 	database      string
 	id            string
@@ -97,30 +61,16 @@ type sessionClient struct {
 	callOptions   *vkit.CallOptions
 }
 
-// newSessionClient creates a session client to use for a database.
-func newSessionClient(connPool gtransport.ConnPool, database string, sessionLabels map[string]string, md metadata.MD, logger *log.Logger, callOptions *vkit.CallOptions) *sessionClient {
-	return &sessionClient{
-		connPool:      connPool,
-		database:      database,
-		id:            cidGen.nextID(database),
-		sessionLabels: sessionLabels,
-		md:            md,
-		batchTimeout:  time.Minute,
-		logger:        logger,
-		callOptions:   callOptions,
-	}
+func gologoo__newSessionClient_829b5d6d60227b496d673506b210fee2(connPool gtransport.ConnPool, database string, sessionLabels map[string]string, md metadata.MD, logger *log.Logger, callOptions *vkit.CallOptions) *sessionClient {
+	return &sessionClient{connPool: connPool, database: database, id: cidGen.nextID(database), sessionLabels: sessionLabels, md: md, batchTimeout: time.Minute, logger: logger, callOptions: callOptions}
 }
-
-func (sc *sessionClient) close() error {
+func (sc *sessionClient) gologoo__close_829b5d6d60227b496d673506b210fee2() error {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	sc.closed = true
 	return sc.connPool.Close()
 }
-
-// createSession creates one session for the database of the sessionClient. The
-// session is created using one synchronous RPC.
-func (sc *sessionClient) createSession(ctx context.Context) (*session, error) {
+func (sc *sessionClient) gologoo__createSession_829b5d6d60227b496d673506b210fee2(ctx context.Context) (*session, error) {
 	sc.mu.Lock()
 	if sc.closed {
 		sc.mu.Unlock()
@@ -133,22 +83,13 @@ func (sc *sessionClient) createSession(ctx context.Context) (*session, error) {
 	}
 	ctx = contextWithOutgoingMetadata(ctx, sc.md)
 	var md metadata.MD
-	sid, err := client.CreateSession(ctx, &sppb.CreateSessionRequest{
-		Database: sc.database,
-		Session:  &sppb.Session{Labels: sc.sessionLabels},
-	}, gax.WithGRPCOptions(grpc.Header(&md)))
-
+	sid, err := client.CreateSession(ctx, &sppb.CreateSessionRequest{Database: sc.database, Session: &sppb.Session{Labels: sc.sessionLabels}}, gax.WithGRPCOptions(grpc.Header(&md)))
 	if getGFELatencyMetricsFlag() && md != nil {
 		_, instance, database, err := parseDatabaseName(sc.database)
 		if err != nil {
 			return nil, ToSpannerError(err)
 		}
-		ctxGFE, err := tag.New(ctx,
-			tag.Upsert(tagKeyClientID, sc.id),
-			tag.Upsert(tagKeyDatabase, database),
-			tag.Upsert(tagKeyInstance, instance),
-			tag.Upsert(tagKeyLibVersion, internal.Version),
-		)
+		ctxGFE, err := tag.New(ctx, tag.Upsert(tagKeyClientID, sc.id), tag.Upsert(tagKeyDatabase, database), tag.Upsert(tagKeyInstance, instance), tag.Upsert(tagKeyLibVersion, internal.Version))
 		if err != nil {
 			trace.TracePrintf(ctx, nil, "Error in recording GFE Latency. Try disabling and rerunning. Error: %v", ToSpannerError(err))
 		}
@@ -162,30 +103,11 @@ func (sc *sessionClient) createSession(ctx context.Context) (*session, error) {
 	}
 	return &session{valid: true, client: client, id: sid.Name, createTime: time.Now(), md: sc.md, logger: sc.logger}, nil
 }
-
-// batchCreateSessions creates a batch of sessions for the database of the
-// sessionClient and returns these to the given sessionConsumer.
-//
-// createSessionCount is the number of sessions that should be created. The
-// sessionConsumer is guaranteed to receive the requested number of sessions if
-// no error occurs. If one or more errors occur, the sessionConsumer will
-// receive any number of sessions + any number of errors, where each error will
-// include the number of sessions that could not be created as a result of the
-// error. The sum of returned sessions and errored sessions will be equal to
-// the number of requested sessions.
-// If distributeOverChannels is true, the sessions will be equally distributed
-// over all the channels that are in use by the client.
-func (sc *sessionClient) batchCreateSessions(createSessionCount int32, distributeOverChannels bool, consumer sessionConsumer) error {
+func (sc *sessionClient) gologoo__batchCreateSessions_829b5d6d60227b496d673506b210fee2(createSessionCount int32, distributeOverChannels bool, consumer sessionConsumer) error {
 	var sessionCountPerChannel int32
 	var remainder int32
 	if distributeOverChannels {
-		// The sessions that we create should be evenly distributed over all the
-		// channels (gapic clients) that are used by the client. Each gapic client
-		// will do a request for a fraction of the total.
 		sessionCountPerChannel = createSessionCount / int32(sc.connPool.Num())
-		// The remainder of the calculation will be added to the number of sessions
-		// that will be created for the first channel, to ensure that we create the
-		// exact number of requested sessions.
 		remainder = createSessionCount % int32(sc.connPool.Num())
 	} else {
 		sessionCountPerChannel = createSessionCount
@@ -195,28 +117,14 @@ func (sc *sessionClient) batchCreateSessions(createSessionCount int32, distribut
 	if sc.closed {
 		return spannerErrorf(codes.FailedPrecondition, "SessionClient is closed")
 	}
-	// Spread the session creation over all available gRPC channels. Spanner
-	// will maintain server side caches for a session on the gRPC channel that
-	// is used by the session. A session should therefore always use the same
-	// channel, and the sessions should be as evenly distributed as possible
-	// over the channels.
 	var numBeingCreated int32
 	for i := 0; i < sc.connPool.Num() && numBeingCreated < createSessionCount; i++ {
 		client, err := sc.nextClient()
 		if err != nil {
 			return err
 		}
-		// Determine the number of sessions that should be created for this
-		// channel. The createCount for the first channel will be increased
-		// with the remainder of the division of the total number of sessions
-		// with the number of channels. All other channels will just use the
-		// result of the division over all channels.
 		createCountForChannel := sessionCountPerChannel
 		if i == 0 {
-			// We add the remainder to the first gRPC channel we use. We could
-			// also spread the remainder over all channels, but this ensures
-			// that small batches of sessions (i.e. less than numChannels) are
-			// created in one RPC.
 			createCountForChannel += remainder
 		}
 		if createCountForChannel > 0 {
@@ -226,16 +134,14 @@ func (sc *sessionClient) batchCreateSessions(createSessionCount int32, distribut
 	}
 	return nil
 }
-
-// executeBatchCreateSessions executes the gRPC call for creating a batch of
-// sessions.
-func (sc *sessionClient) executeBatchCreateSessions(client *vkit.Client, createCount int32, labels map[string]string, md metadata.MD, consumer sessionConsumer) {
+func (sc *sessionClient) gologoo__executeBatchCreateSessions_829b5d6d60227b496d673506b210fee2(client *vkit.Client, createCount int32, labels map[string]string, md metadata.MD, consumer sessionConsumer) {
 	ctx, cancel := context.WithTimeout(context.Background(), sc.batchTimeout)
 	defer cancel()
 	ctx = contextWithOutgoingMetadata(ctx, sc.md)
-
 	ctx = trace.StartSpan(ctx, "cloud.google.com/go/spanner.BatchCreateSessions")
-	defer func() { trace.EndSpan(ctx, nil) }()
+	defer func() {
+		trace.EndSpan(ctx, nil)
+	}()
 	trace.TracePrintf(ctx, nil, "Creating a batch of %d sessions", createCount)
 	remainingCreateCount := createCount
 	for {
@@ -254,24 +160,13 @@ func (sc *sessionClient) executeBatchCreateSessions(client *vkit.Client, createC
 			break
 		}
 		var mdForGFELatency metadata.MD
-		response, err := client.BatchCreateSessions(ctx, &sppb.BatchCreateSessionsRequest{
-			SessionCount:    remainingCreateCount,
-			Database:        sc.database,
-			SessionTemplate: &sppb.Session{Labels: labels},
-		}, gax.WithGRPCOptions(grpc.Header(&mdForGFELatency)))
-
+		response, err := client.BatchCreateSessions(ctx, &sppb.BatchCreateSessionsRequest{SessionCount: remainingCreateCount, Database: sc.database, SessionTemplate: &sppb.Session{Labels: labels}}, gax.WithGRPCOptions(grpc.Header(&mdForGFELatency)))
 		if getGFELatencyMetricsFlag() && mdForGFELatency != nil {
 			_, instance, database, err := parseDatabaseName(sc.database)
 			if err != nil {
 				trace.TracePrintf(ctx, nil, "Error getting instance and database name: %v", err)
 			}
-			// Errors should not prevent initializing the session pool.
-			ctxGFE, err := tag.New(ctx,
-				tag.Upsert(tagKeyClientID, sc.id),
-				tag.Upsert(tagKeyDatabase, database),
-				tag.Upsert(tagKeyInstance, instance),
-				tag.Upsert(tagKeyLibVersion, internal.Version),
-			)
+			ctxGFE, err := tag.New(ctx, tag.Upsert(tagKeyClientID, sc.id), tag.Upsert(tagKeyDatabase, database), tag.Upsert(tagKeyInstance, instance), tag.Upsert(tagKeyLibVersion, internal.Version))
 			if err != nil {
 				trace.TracePrintf(ctx, nil, "Error in adding tags in BatchCreateSessions for GFE Latency: %v", err)
 			}
@@ -291,8 +186,6 @@ func (sc *sessionClient) executeBatchCreateSessions(client *vkit.Client, createC
 			consumer.sessionReady(&session{valid: true, client: client, id: s.Name, createTime: time.Now(), md: md, logger: sc.logger})
 		}
 		if actuallyCreated < remainingCreateCount {
-			// Spanner could return less sessions than requested. In that case, we
-			// should do another call using the same gRPC channel.
 			remainingCreateCount -= actuallyCreated
 		} else {
 			trace.TracePrintf(ctx, nil, "Finished creating %d sessions", createCount)
@@ -300,8 +193,7 @@ func (sc *sessionClient) executeBatchCreateSessions(client *vkit.Client, createC
 		}
 	}
 }
-
-func (sc *sessionClient) sessionWithID(id string) (*session, error) {
+func (sc *sessionClient) gologoo__sessionWithID_829b5d6d60227b496d673506b210fee2(id string) (*session, error) {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	client, err := sc.nextClient()
@@ -310,14 +202,7 @@ func (sc *sessionClient) sessionWithID(id string) (*session, error) {
 	}
 	return &session{valid: true, client: client, id: id, createTime: time.Now(), md: sc.md, logger: sc.logger}, nil
 }
-
-// nextClient returns the next gRPC client to use for session creation. The
-// client is set on the session, and used by all subsequent gRPC calls on the
-// session. Using the same channel for all gRPC calls for a session ensures the
-// optimal usage of server side caches.
-func (sc *sessionClient) nextClient() (*vkit.Client, error) {
-	// This call should never return an error as we are passing in an existing
-	// connection, so we can safely ignore it.
+func (sc *sessionClient) gologoo__nextClient_829b5d6d60227b496d673506b210fee2() (*vkit.Client, error) {
 	client, err := vkit.NewClient(context.Background(), option.WithGRPCConn(sc.connPool.Conn()))
 	if err != nil {
 		return nil, err
@@ -328,25 +213,98 @@ func (sc *sessionClient) nextClient() (*vkit.Client, error) {
 	}
 	return client, nil
 }
-
-// mergeCallOptions merges two CallOptions into one and the first argument has
-// a lower order of precedence than the second one.
-func mergeCallOptions(a *vkit.CallOptions, b *vkit.CallOptions) *vkit.CallOptions {
+func gologoo__mergeCallOptions_829b5d6d60227b496d673506b210fee2(a *vkit.CallOptions, b *vkit.CallOptions) *vkit.CallOptions {
 	res := &vkit.CallOptions{}
 	resVal := reflect.ValueOf(res).Elem()
 	aVal := reflect.ValueOf(a).Elem()
 	bVal := reflect.ValueOf(b).Elem()
-
 	t := aVal.Type()
-
 	for i := 0; i < aVal.NumField(); i++ {
 		fieldName := t.Field(i).Name
-
 		aFieldVal := aVal.Field(i).Interface().([]gax.CallOption)
 		bFieldVal := bVal.Field(i).Interface().([]gax.CallOption)
-
 		merged := append(aFieldVal, bFieldVal...)
 		resVal.FieldByName(fieldName).Set(reflect.ValueOf(merged))
 	}
 	return res
+}
+func newClientIDGenerator() *clientIDGenerator {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__newClientIDGenerator_829b5d6d60227b496d673506b210fee2")
+	log.Printf("Input : (none)\n")
+	r0 := gologoo__newClientIDGenerator_829b5d6d60227b496d673506b210fee2()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (cg *clientIDGenerator) nextID(database string) string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__nextID_829b5d6d60227b496d673506b210fee2")
+	log.Printf("Input : %v\n", database)
+	r0 := cg.gologoo__nextID_829b5d6d60227b496d673506b210fee2(database)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func newSessionClient(connPool gtransport.ConnPool, database string, sessionLabels map[string]string, md metadata.MD, logger *log.Logger, callOptions *vkit.CallOptions) *sessionClient {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__newSessionClient_829b5d6d60227b496d673506b210fee2")
+	log.Printf("Input : %v %v %v %v %v %v\n", connPool, database, sessionLabels, md, logger, callOptions)
+	r0 := gologoo__newSessionClient_829b5d6d60227b496d673506b210fee2(connPool, database, sessionLabels, md, logger, callOptions)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (sc *sessionClient) close() error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__close_829b5d6d60227b496d673506b210fee2")
+	log.Printf("Input : (none)\n")
+	r0 := sc.gologoo__close_829b5d6d60227b496d673506b210fee2()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (sc *sessionClient) createSession(ctx context.Context) (*session, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__createSession_829b5d6d60227b496d673506b210fee2")
+	log.Printf("Input : %v\n", ctx)
+	r0, r1 := sc.gologoo__createSession_829b5d6d60227b496d673506b210fee2(ctx)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (sc *sessionClient) batchCreateSessions(createSessionCount int32, distributeOverChannels bool, consumer sessionConsumer) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__batchCreateSessions_829b5d6d60227b496d673506b210fee2")
+	log.Printf("Input : %v %v %v\n", createSessionCount, distributeOverChannels, consumer)
+	r0 := sc.gologoo__batchCreateSessions_829b5d6d60227b496d673506b210fee2(createSessionCount, distributeOverChannels, consumer)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (sc *sessionClient) executeBatchCreateSessions(client *vkit.Client, createCount int32, labels map[string]string, md metadata.MD, consumer sessionConsumer) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__executeBatchCreateSessions_829b5d6d60227b496d673506b210fee2")
+	log.Printf("Input : %v %v %v %v %v\n", client, createCount, labels, md, consumer)
+	sc.gologoo__executeBatchCreateSessions_829b5d6d60227b496d673506b210fee2(client, createCount, labels, md, consumer)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (sc *sessionClient) sessionWithID(id string) (*session, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__sessionWithID_829b5d6d60227b496d673506b210fee2")
+	log.Printf("Input : %v\n", id)
+	r0, r1 := sc.gologoo__sessionWithID_829b5d6d60227b496d673506b210fee2(id)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (sc *sessionClient) nextClient() (*vkit.Client, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__nextClient_829b5d6d60227b496d673506b210fee2")
+	log.Printf("Input : (none)\n")
+	r0, r1 := sc.gologoo__nextClient_829b5d6d60227b496d673506b210fee2()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func mergeCallOptions(a *vkit.CallOptions, b *vkit.CallOptions) *vkit.CallOptions {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__mergeCallOptions_829b5d6d60227b496d673506b210fee2")
+	log.Printf("Input : %v %v\n", a, b)
+	r0 := gologoo__mergeCallOptions_829b5d6d60227b496d673506b210fee2(a, b)
+	log.Printf("Output: %v\n", r0)
+	return r0
 }

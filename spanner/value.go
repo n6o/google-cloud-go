@@ -1,19 +1,3 @@
-/*
-Copyright 2017 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package spanner
 
 import (
@@ -29,65 +13,38 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
 	"cloud.google.com/go/civil"
 	"cloud.google.com/go/internal/fields"
 	"github.com/golang/protobuf/proto"
 	proto3 "github.com/golang/protobuf/ptypes/struct"
 	sppb "google.golang.org/genproto/googleapis/spanner/v1"
 	"google.golang.org/grpc/codes"
+	"log"
 )
 
 const (
-	// nullString is returned by the String methods of NullableValues when the
-	// underlying database value is null.
 	nullString                       = "<null>"
 	commitTimestampPlaceholderString = "spanner.commit_timestamp()"
-
-	// NumericPrecisionDigits is the maximum number of digits in a NUMERIC
-	// value.
-	NumericPrecisionDigits = 38
-
-	// NumericScaleDigits is the maximum number of digits after the decimal
-	// point in a NUMERIC value.
-	NumericScaleDigits = 9
+	NumericPrecisionDigits           = 38
+	NumericScaleDigits               = 9
 )
 
-// LossOfPrecisionHandlingOption describes the option to deal with loss of
-// precision on numeric values.
 type LossOfPrecisionHandlingOption int
 
 const (
-	// NumericRound automatically rounds a numeric value that has a higher
-	// precision than what is supported by Spanner, e.g., 0.1234567895 rounds
-	// to 0.123456790.
 	NumericRound LossOfPrecisionHandlingOption = iota
-	// NumericError returns an error for numeric values that have a higher
-	// precision than what is supported by Spanner. E.g. the client returns an
-	// error if the application tries to insert the value 0.1234567895.
 	NumericError
 )
 
-// LossOfPrecisionHandling configures how to deal with loss of precision on
-// numeric values. The value of this configuration is global and will be used
-// for all Spanner clients.
 var LossOfPrecisionHandling LossOfPrecisionHandlingOption
 
-// NumericString returns a string representing a *big.Rat in a format compatible
-// with Spanner SQL. It returns a floating-point literal with 9 digits after the
-// decimal point.
-func NumericString(r *big.Rat) string {
+func gologoo__NumericString_6a1b612599996733c2066401f14792cf(r *big.Rat) string {
 	return r.FloatString(NumericScaleDigits)
 }
-
-// validateNumeric returns nil if there are no errors. It will return an error
-// when the numeric number is not valid.
-func validateNumeric(r *big.Rat) error {
+func gologoo__validateNumeric_6a1b612599996733c2066401f14792cf(r *big.Rat) error {
 	if r == nil {
 		return nil
 	}
-	// Add one more digit to the scale component to find out if there are more
-	// digits than required.
 	strRep := r.FloatString(NumericScaleDigits + 1)
 	strRep = strings.TrimRight(strRep, "0")
 	strRep = strings.TrimLeft(strRep, "-")
@@ -104,97 +61,43 @@ func validateNumeric(r *big.Rat) error {
 }
 
 var (
-	// CommitTimestamp is a special value used to tell Cloud Spanner to insert
-	// the commit timestamp of the transaction into a column. It can be used in
-	// a Mutation, or directly used in InsertStruct or InsertMap. See
-	// ExampleCommitTimestamp. This is just a placeholder and the actual value
-	// stored in this variable has no meaning.
 	CommitTimestamp = commitTimestamp
 	commitTimestamp = time.Unix(0, 0).In(time.FixedZone("CommitTimestamp placeholder", 0xDB))
-
-	jsonNullBytes = []byte("null")
+	jsonNullBytes   = []byte("null")
 )
 
-// Encoder is the interface implemented by a custom type that can be encoded to
-// a supported type by Spanner. A code example:
-//
-//   type customField struct {
-//       Prefix string
-//       Suffix string
-//   }
-//
-//   // Convert a customField value to a string
-//   func (cf customField) EncodeSpanner() (interface{}, error) {
-//       var b bytes.Buffer
-//       b.WriteString(cf.Prefix)
-//       b.WriteString("-")
-//       b.WriteString(cf.Suffix)
-//       return b.String(), nil
-//   }
 type Encoder interface {
-	EncodeSpanner() (interface{}, error)
+	EncodeSpanner() (interface {
+	}, error)
 }
-
-// Decoder is the interface implemented by a custom type that can be decoded
-// from a supported type by Spanner. A code example:
-//
-//   type customField struct {
-//       Prefix string
-//       Suffix string
-//   }
-//
-//   // Convert a string to a customField value
-//   func (cf *customField) DecodeSpanner(val interface{}) (err error) {
-//       strVal, ok := val.(string)
-//       if !ok {
-//           return fmt.Errorf("failed to decode customField: %v", val)
-//       }
-//       s := strings.Split(strVal, "-")
-//       if len(s) > 1 {
-//           cf.Prefix = s[0]
-//           cf.Suffix = s[1]
-//       }
-//       return nil
-//   }
 type Decoder interface {
-	DecodeSpanner(input interface{}) error
+	DecodeSpanner(input interface {
+	}) error
 }
-
-// NullableValue is the interface implemented by all null value wrapper types.
 type NullableValue interface {
-	// IsNull returns true if the underlying database value is null.
 	IsNull() bool
 }
-
-// NullInt64 represents a Cloud Spanner INT64 that may be NULL.
 type NullInt64 struct {
-	Int64 int64 // Int64 contains the value when it is non-NULL, and zero when NULL.
-	Valid bool  // Valid is true if Int64 is not NULL.
+	Int64 int64
+	Valid bool
 }
 
-// IsNull implements NullableValue.IsNull for NullInt64.
-func (n NullInt64) IsNull() bool {
+func (n NullInt64) gologoo__IsNull_6a1b612599996733c2066401f14792cf() bool {
 	return !n.Valid
 }
-
-// String implements Stringer.String for NullInt64
-func (n NullInt64) String() string {
+func (n NullInt64) gologoo__String_6a1b612599996733c2066401f14792cf() string {
 	if !n.Valid {
 		return nullString
 	}
 	return fmt.Sprintf("%v", n.Int64)
 }
-
-// MarshalJSON implements json.Marshaler.MarshalJSON for NullInt64.
-func (n NullInt64) MarshalJSON() ([]byte, error) {
+func (n NullInt64) gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf() ([]byte, error) {
 	if n.Valid {
 		return []byte(fmt.Sprintf("%v", n.Int64)), nil
 	}
 	return jsonNullBytes, nil
 }
-
-// UnmarshalJSON implements json.Unmarshaler.UnmarshalJSON for NullInt64.
-func (n *NullInt64) UnmarshalJSON(payload []byte) error {
+func (n *NullInt64) gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload []byte) error {
 	if payload == nil {
 		return fmt.Errorf("payload should not be nil")
 	}
@@ -211,17 +114,14 @@ func (n *NullInt64) UnmarshalJSON(payload []byte) error {
 	n.Valid = true
 	return nil
 }
-
-// Value implements the driver.Valuer interface.
-func (n NullInt64) Value() (driver.Value, error) {
+func (n NullInt64) gologoo__Value_6a1b612599996733c2066401f14792cf() (driver.Value, error) {
 	if n.IsNull() {
 		return nil, nil
 	}
 	return n.Int64, nil
 }
-
-// Scan implements the sql.Scanner interface.
-func (n *NullInt64) Scan(value interface{}) error {
+func (n *NullInt64) gologoo__Scan_6a1b612599996733c2066401f14792cf(value interface {
+}) error {
 	if value == nil {
 		n.Int64, n.Valid = 0, false
 		return nil
@@ -243,41 +143,31 @@ func (n *NullInt64) Scan(value interface{}) error {
 	}
 	return nil
 }
-
-// GormDataType is used by gorm to determine the default data type for fields with this type.
-func (n NullInt64) GormDataType() string {
+func (n NullInt64) gologoo__GormDataType_6a1b612599996733c2066401f14792cf() string {
 	return "INT64"
 }
 
-// NullString represents a Cloud Spanner STRING that may be NULL.
 type NullString struct {
-	StringVal string // StringVal contains the value when it is non-NULL, and an empty string when NULL.
-	Valid     bool   // Valid is true if StringVal is not NULL.
+	StringVal string
+	Valid     bool
 }
 
-// IsNull implements NullableValue.IsNull for NullString.
-func (n NullString) IsNull() bool {
+func (n NullString) gologoo__IsNull_6a1b612599996733c2066401f14792cf() bool {
 	return !n.Valid
 }
-
-// String implements Stringer.String for NullString
-func (n NullString) String() string {
+func (n NullString) gologoo__String_6a1b612599996733c2066401f14792cf() string {
 	if !n.Valid {
 		return nullString
 	}
 	return n.StringVal
 }
-
-// MarshalJSON implements json.Marshaler.MarshalJSON for NullString.
-func (n NullString) MarshalJSON() ([]byte, error) {
+func (n NullString) gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf() ([]byte, error) {
 	if n.Valid {
 		return []byte(fmt.Sprintf("%q", n.StringVal)), nil
 	}
 	return jsonNullBytes, nil
 }
-
-// UnmarshalJSON implements json.Unmarshaler.UnmarshalJSON for NullString.
-func (n *NullString) UnmarshalJSON(payload []byte) error {
+func (n *NullString) gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload []byte) error {
 	if payload == nil {
 		return fmt.Errorf("payload should not be nil")
 	}
@@ -299,17 +189,14 @@ func (n *NullString) UnmarshalJSON(payload []byte) error {
 	}
 	return nil
 }
-
-// Value implements the driver.Valuer interface.
-func (n NullString) Value() (driver.Value, error) {
+func (n NullString) gologoo__Value_6a1b612599996733c2066401f14792cf() (driver.Value, error) {
 	if n.IsNull() {
 		return nil, nil
 	}
 	return n.StringVal, nil
 }
-
-// Scan implements the sql.Scanner interface.
-func (n *NullString) Scan(value interface{}) error {
+func (n *NullString) gologoo__Scan_6a1b612599996733c2066401f14792cf(value interface {
+}) error {
 	if value == nil {
 		n.StringVal, n.Valid = "", false
 		return nil
@@ -331,41 +218,31 @@ func (n *NullString) Scan(value interface{}) error {
 	}
 	return nil
 }
-
-// GormDataType is used by gorm to determine the default data type for fields with this type.
-func (n NullString) GormDataType() string {
+func (n NullString) gologoo__GormDataType_6a1b612599996733c2066401f14792cf() string {
 	return "STRING(MAX)"
 }
 
-// NullFloat64 represents a Cloud Spanner FLOAT64 that may be NULL.
 type NullFloat64 struct {
-	Float64 float64 // Float64 contains the value when it is non-NULL, and zero when NULL.
-	Valid   bool    // Valid is true if Float64 is not NULL.
+	Float64 float64
+	Valid   bool
 }
 
-// IsNull implements NullableValue.IsNull for NullFloat64.
-func (n NullFloat64) IsNull() bool {
+func (n NullFloat64) gologoo__IsNull_6a1b612599996733c2066401f14792cf() bool {
 	return !n.Valid
 }
-
-// String implements Stringer.String for NullFloat64
-func (n NullFloat64) String() string {
+func (n NullFloat64) gologoo__String_6a1b612599996733c2066401f14792cf() string {
 	if !n.Valid {
 		return nullString
 	}
 	return fmt.Sprintf("%v", n.Float64)
 }
-
-// MarshalJSON implements json.Marshaler.MarshalJSON for NullFloat64.
-func (n NullFloat64) MarshalJSON() ([]byte, error) {
+func (n NullFloat64) gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf() ([]byte, error) {
 	if n.Valid {
 		return []byte(fmt.Sprintf("%v", n.Float64)), nil
 	}
 	return jsonNullBytes, nil
 }
-
-// UnmarshalJSON implements json.Unmarshaler.UnmarshalJSON for NullFloat64.
-func (n *NullFloat64) UnmarshalJSON(payload []byte) error {
+func (n *NullFloat64) gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload []byte) error {
 	if payload == nil {
 		return fmt.Errorf("payload should not be nil")
 	}
@@ -382,17 +259,14 @@ func (n *NullFloat64) UnmarshalJSON(payload []byte) error {
 	n.Valid = true
 	return nil
 }
-
-// Value implements the driver.Valuer interface.
-func (n NullFloat64) Value() (driver.Value, error) {
+func (n NullFloat64) gologoo__Value_6a1b612599996733c2066401f14792cf() (driver.Value, error) {
 	if n.IsNull() {
 		return nil, nil
 	}
 	return n.Float64, nil
 }
-
-// Scan implements the sql.Scanner interface.
-func (n *NullFloat64) Scan(value interface{}) error {
+func (n *NullFloat64) gologoo__Scan_6a1b612599996733c2066401f14792cf(value interface {
+}) error {
 	if value == nil {
 		n.Float64, n.Valid = 0, false
 		return nil
@@ -414,41 +288,31 @@ func (n *NullFloat64) Scan(value interface{}) error {
 	}
 	return nil
 }
-
-// GormDataType is used by gorm to determine the default data type for fields with this type.
-func (n NullFloat64) GormDataType() string {
+func (n NullFloat64) gologoo__GormDataType_6a1b612599996733c2066401f14792cf() string {
 	return "FLOAT64"
 }
 
-// NullBool represents a Cloud Spanner BOOL that may be NULL.
 type NullBool struct {
-	Bool  bool // Bool contains the value when it is non-NULL, and false when NULL.
-	Valid bool // Valid is true if Bool is not NULL.
+	Bool  bool
+	Valid bool
 }
 
-// IsNull implements NullableValue.IsNull for NullBool.
-func (n NullBool) IsNull() bool {
+func (n NullBool) gologoo__IsNull_6a1b612599996733c2066401f14792cf() bool {
 	return !n.Valid
 }
-
-// String implements Stringer.String for NullBool
-func (n NullBool) String() string {
+func (n NullBool) gologoo__String_6a1b612599996733c2066401f14792cf() string {
 	if !n.Valid {
 		return nullString
 	}
 	return fmt.Sprintf("%v", n.Bool)
 }
-
-// MarshalJSON implements json.Marshaler.MarshalJSON for NullBool.
-func (n NullBool) MarshalJSON() ([]byte, error) {
+func (n NullBool) gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf() ([]byte, error) {
 	if n.Valid {
 		return []byte(fmt.Sprintf("%v", n.Bool)), nil
 	}
 	return jsonNullBytes, nil
 }
-
-// UnmarshalJSON implements json.Unmarshaler.UnmarshalJSON for NullBool.
-func (n *NullBool) UnmarshalJSON(payload []byte) error {
+func (n *NullBool) gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload []byte) error {
 	if payload == nil {
 		return fmt.Errorf("payload should not be nil")
 	}
@@ -465,17 +329,14 @@ func (n *NullBool) UnmarshalJSON(payload []byte) error {
 	n.Valid = true
 	return nil
 }
-
-// Value implements the driver.Valuer interface.
-func (n NullBool) Value() (driver.Value, error) {
+func (n NullBool) gologoo__Value_6a1b612599996733c2066401f14792cf() (driver.Value, error) {
 	if n.IsNull() {
 		return nil, nil
 	}
 	return n.Bool, nil
 }
-
-// Scan implements the sql.Scanner interface.
-func (n *NullBool) Scan(value interface{}) error {
+func (n *NullBool) gologoo__Scan_6a1b612599996733c2066401f14792cf(value interface {
+}) error {
 	if value == nil {
 		n.Bool, n.Valid = false, false
 		return nil
@@ -497,41 +358,31 @@ func (n *NullBool) Scan(value interface{}) error {
 	}
 	return nil
 }
-
-// GormDataType is used by gorm to determine the default data type for fields with this type.
-func (n NullBool) GormDataType() string {
+func (n NullBool) gologoo__GormDataType_6a1b612599996733c2066401f14792cf() string {
 	return "BOOL"
 }
 
-// NullTime represents a Cloud Spanner TIMESTAMP that may be null.
 type NullTime struct {
-	Time  time.Time // Time contains the value when it is non-NULL, and a zero time.Time when NULL.
-	Valid bool      // Valid is true if Time is not NULL.
+	Time  time.Time
+	Valid bool
 }
 
-// IsNull implements NullableValue.IsNull for NullTime.
-func (n NullTime) IsNull() bool {
+func (n NullTime) gologoo__IsNull_6a1b612599996733c2066401f14792cf() bool {
 	return !n.Valid
 }
-
-// String implements Stringer.String for NullTime
-func (n NullTime) String() string {
+func (n NullTime) gologoo__String_6a1b612599996733c2066401f14792cf() string {
 	if !n.Valid {
 		return nullString
 	}
 	return n.Time.Format(time.RFC3339Nano)
 }
-
-// MarshalJSON implements json.Marshaler.MarshalJSON for NullTime.
-func (n NullTime) MarshalJSON() ([]byte, error) {
+func (n NullTime) gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf() ([]byte, error) {
 	if n.Valid {
 		return []byte(fmt.Sprintf("%q", n.String())), nil
 	}
 	return jsonNullBytes, nil
 }
-
-// UnmarshalJSON implements json.Unmarshaler.UnmarshalJSON for NullTime.
-func (n *NullTime) UnmarshalJSON(payload []byte) error {
+func (n *NullTime) gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload []byte) error {
 	if payload == nil {
 		return fmt.Errorf("payload should not be nil")
 	}
@@ -553,17 +404,14 @@ func (n *NullTime) UnmarshalJSON(payload []byte) error {
 	n.Valid = true
 	return nil
 }
-
-// Value implements the driver.Valuer interface.
-func (n NullTime) Value() (driver.Value, error) {
+func (n NullTime) gologoo__Value_6a1b612599996733c2066401f14792cf() (driver.Value, error) {
 	if n.IsNull() {
 		return nil, nil
 	}
 	return n.Time, nil
 }
-
-// Scan implements the sql.Scanner interface.
-func (n *NullTime) Scan(value interface{}) error {
+func (n *NullTime) gologoo__Scan_6a1b612599996733c2066401f14792cf(value interface {
+}) error {
 	if value == nil {
 		n.Time, n.Valid = time.Time{}, false
 		return nil
@@ -585,41 +433,31 @@ func (n *NullTime) Scan(value interface{}) error {
 	}
 	return nil
 }
-
-// GormDataType is used by gorm to determine the default data type for fields with this type.
-func (n NullTime) GormDataType() string {
+func (n NullTime) gologoo__GormDataType_6a1b612599996733c2066401f14792cf() string {
 	return "TIMESTAMP"
 }
 
-// NullDate represents a Cloud Spanner DATE that may be null.
 type NullDate struct {
-	Date  civil.Date // Date contains the value when it is non-NULL, and a zero civil.Date when NULL.
-	Valid bool       // Valid is true if Date is not NULL.
+	Date  civil.Date
+	Valid bool
 }
 
-// IsNull implements NullableValue.IsNull for NullDate.
-func (n NullDate) IsNull() bool {
+func (n NullDate) gologoo__IsNull_6a1b612599996733c2066401f14792cf() bool {
 	return !n.Valid
 }
-
-// String implements Stringer.String for NullDate
-func (n NullDate) String() string {
+func (n NullDate) gologoo__String_6a1b612599996733c2066401f14792cf() string {
 	if !n.Valid {
 		return nullString
 	}
 	return n.Date.String()
 }
-
-// MarshalJSON implements json.Marshaler.MarshalJSON for NullDate.
-func (n NullDate) MarshalJSON() ([]byte, error) {
+func (n NullDate) gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf() ([]byte, error) {
 	if n.Valid {
 		return []byte(fmt.Sprintf("%q", n.String())), nil
 	}
 	return jsonNullBytes, nil
 }
-
-// UnmarshalJSON implements json.Unmarshaler.UnmarshalJSON for NullDate.
-func (n *NullDate) UnmarshalJSON(payload []byte) error {
+func (n *NullDate) gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload []byte) error {
 	if payload == nil {
 		return fmt.Errorf("payload should not be nil")
 	}
@@ -641,17 +479,14 @@ func (n *NullDate) UnmarshalJSON(payload []byte) error {
 	n.Valid = true
 	return nil
 }
-
-// Value implements the driver.Valuer interface.
-func (n NullDate) Value() (driver.Value, error) {
+func (n NullDate) gologoo__Value_6a1b612599996733c2066401f14792cf() (driver.Value, error) {
 	if n.IsNull() {
 		return nil, nil
 	}
 	return n.Date, nil
 }
-
-// Scan implements the sql.Scanner interface.
-func (n *NullDate) Scan(value interface{}) error {
+func (n *NullDate) gologoo__Scan_6a1b612599996733c2066401f14792cf(value interface {
+}) error {
 	if value == nil {
 		n.Date, n.Valid = civil.Date{}, false
 		return nil
@@ -673,41 +508,31 @@ func (n *NullDate) Scan(value interface{}) error {
 	}
 	return nil
 }
-
-// GormDataType is used by gorm to determine the default data type for fields with this type.
-func (n NullDate) GormDataType() string {
+func (n NullDate) gologoo__GormDataType_6a1b612599996733c2066401f14792cf() string {
 	return "DATE"
 }
 
-// NullNumeric represents a Cloud Spanner Numeric that may be NULL.
 type NullNumeric struct {
-	Numeric big.Rat // Numeric contains the value when it is non-NULL, and a zero big.Rat when NULL.
-	Valid   bool    // Valid is true if Numeric is not NULL.
+	Numeric big.Rat
+	Valid   bool
 }
 
-// IsNull implements NullableValue.IsNull for NullNumeric.
-func (n NullNumeric) IsNull() bool {
+func (n NullNumeric) gologoo__IsNull_6a1b612599996733c2066401f14792cf() bool {
 	return !n.Valid
 }
-
-// String implements Stringer.String for NullNumeric
-func (n NullNumeric) String() string {
+func (n NullNumeric) gologoo__String_6a1b612599996733c2066401f14792cf() string {
 	if !n.Valid {
 		return nullString
 	}
 	return fmt.Sprintf("%v", NumericString(&n.Numeric))
 }
-
-// MarshalJSON implements json.Marshaler.MarshalJSON for NullNumeric.
-func (n NullNumeric) MarshalJSON() ([]byte, error) {
+func (n NullNumeric) gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf() ([]byte, error) {
 	if n.Valid {
 		return []byte(fmt.Sprintf("%q", NumericString(&n.Numeric))), nil
 	}
 	return jsonNullBytes, nil
 }
-
-// UnmarshalJSON implements json.Unmarshaler.UnmarshalJSON for NullNumeric.
-func (n *NullNumeric) UnmarshalJSON(payload []byte) error {
+func (n *NullNumeric) gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload []byte) error {
 	if payload == nil {
 		return fmt.Errorf("payload should not be nil")
 	}
@@ -729,17 +554,14 @@ func (n *NullNumeric) UnmarshalJSON(payload []byte) error {
 	n.Valid = true
 	return nil
 }
-
-// Value implements the driver.Valuer interface.
-func (n NullNumeric) Value() (driver.Value, error) {
+func (n NullNumeric) gologoo__Value_6a1b612599996733c2066401f14792cf() (driver.Value, error) {
 	if n.IsNull() {
 		return nil, nil
 	}
 	return n.Numeric, nil
 }
-
-// Scan implements the sql.Scanner interface.
-func (n *NullNumeric) Scan(value interface{}) error {
+func (n *NullNumeric) gologoo__Scan_6a1b612599996733c2066401f14792cf(value interface {
+}) error {
 	if value == nil {
 		n.Numeric, n.Valid = big.Rat{}, false
 		return nil
@@ -761,33 +583,20 @@ func (n *NullNumeric) Scan(value interface{}) error {
 	}
 	return nil
 }
-
-// GormDataType is used by gorm to determine the default data type for fields with this type.
-func (n NullNumeric) GormDataType() string {
+func (n NullNumeric) gologoo__GormDataType_6a1b612599996733c2066401f14792cf() string {
 	return "NUMERIC"
 }
 
-// NullJSON represents a Cloud Spanner JSON that may be NULL.
-//
-// This type must always be used when encoding values to a JSON column in Cloud
-// Spanner.
-//
-// NullJSON does not implement the driver.Valuer and sql.Scanner interfaces, as
-// the underlying value can be anything. This means that the type NullJSON must
-// also be used when calling sql.Row#Scan(dest ...interface{}) for a JSON
-// column.
 type NullJSON struct {
-	Value interface{} // Val contains the value when it is non-NULL, and nil when NULL.
-	Valid bool        // Valid is true if Json is not NULL.
+	Value interface {
+	}
+	Valid bool
 }
 
-// IsNull implements NullableValue.IsNull for NullJSON.
-func (n NullJSON) IsNull() bool {
+func (n NullJSON) gologoo__IsNull_6a1b612599996733c2066401f14792cf() bool {
 	return !n.Valid
 }
-
-// String implements Stringer.String for NullJSON.
-func (n NullJSON) String() string {
+func (n NullJSON) gologoo__String_6a1b612599996733c2066401f14792cf() string {
 	if !n.Valid {
 		return nullString
 	}
@@ -797,17 +606,13 @@ func (n NullJSON) String() string {
 	}
 	return fmt.Sprintf("%v", string(b))
 }
-
-// MarshalJSON implements json.Marshaler.MarshalJSON for NullJSON.
-func (n NullJSON) MarshalJSON() ([]byte, error) {
+func (n NullJSON) gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf() ([]byte, error) {
 	if n.Valid {
 		return json.Marshal(n.Value)
 	}
 	return jsonNullBytes, nil
 }
-
-// UnmarshalJSON implements json.Unmarshaler.UnmarshalJSON for NullJSON.
-func (n *NullJSON) UnmarshalJSON(payload []byte) error {
+func (n *NullJSON) gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload []byte) error {
 	if payload == nil {
 		return fmt.Errorf("payload should not be nil")
 	}
@@ -815,7 +620,8 @@ func (n *NullJSON) UnmarshalJSON(payload []byte) error {
 		n.Valid = false
 		return nil
 	}
-	var v interface{}
+	var v interface {
+	}
 	err := json.Unmarshal(payload, &v)
 	if err != nil {
 		return fmt.Errorf("payload cannot be converted to a struct: got %v, err: %s", string(payload), err)
@@ -824,41 +630,31 @@ func (n *NullJSON) UnmarshalJSON(payload []byte) error {
 	n.Valid = true
 	return nil
 }
-
-// GormDataType is used by gorm to determine the default data type for fields with this type.
-func (n NullJSON) GormDataType() string {
+func (n NullJSON) gologoo__GormDataType_6a1b612599996733c2066401f14792cf() string {
 	return "JSON"
 }
 
-// PGNumeric represents a Cloud Spanner PG Numeric that may be NULL.
 type PGNumeric struct {
-	Numeric string // Numeric contains the value when it is non-NULL, and an empty string when NULL.
-	Valid   bool   // Valid is true if Numeric is not NULL.
+	Numeric string
+	Valid   bool
 }
 
-// IsNull implements NullableValue.IsNull for PGNumeric.
-func (n PGNumeric) IsNull() bool {
+func (n PGNumeric) gologoo__IsNull_6a1b612599996733c2066401f14792cf() bool {
 	return !n.Valid
 }
-
-// String implements Stringer.String for PGNumeric
-func (n PGNumeric) String() string {
+func (n PGNumeric) gologoo__String_6a1b612599996733c2066401f14792cf() string {
 	if !n.Valid {
 		return nullString
 	}
 	return n.Numeric
 }
-
-// MarshalJSON implements json.Marshaler.MarshalJSON for PGNumeric.
-func (n PGNumeric) MarshalJSON() ([]byte, error) {
+func (n PGNumeric) gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf() ([]byte, error) {
 	if n.Valid {
 		return []byte(fmt.Sprintf("%q", n.Numeric)), nil
 	}
 	return jsonNullBytes, nil
 }
-
-// UnmarshalJSON implements json.Unmarshaler.UnmarshalJSON for PGNumeric.
-func (n *PGNumeric) UnmarshalJSON(payload []byte) error {
+func (n *PGNumeric) gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload []byte) error {
 	if payload == nil {
 		return fmt.Errorf("payload should not be nil")
 	}
@@ -876,91 +672,59 @@ func (n *PGNumeric) UnmarshalJSON(payload []byte) error {
 	return nil
 }
 
-// NullRow represents a Cloud Spanner STRUCT that may be NULL.
-// See also the document for Row.
-// Note that NullRow is not a valid Cloud Spanner column Type.
 type NullRow struct {
-	Row   Row  // Row contains the value when it is non-NULL, and a zero Row when NULL.
-	Valid bool // Valid is true if Row is not NULL.
+	Row   Row
+	Valid bool
 }
-
-// GenericColumnValue represents the generic encoded value and type of the
-// column.  See google.spanner.v1.ResultSet proto for details.  This can be
-// useful for proxying query results when the result types are not known in
-// advance.
-//
-// If you populate a GenericColumnValue from a row using Row.Column or related
-// methods, do not modify the contents of Type and Value.
 type GenericColumnValue struct {
 	Type  *sppb.Type
 	Value *proto3.Value
 }
 
-// Decode decodes a GenericColumnValue. The ptr argument should be a pointer
-// to a Go value that can accept v.
-func (v GenericColumnValue) Decode(ptr interface{}) error {
+func (v GenericColumnValue) gologoo__Decode_6a1b612599996733c2066401f14792cf(ptr interface {
+}) error {
 	return decodeValue(v.Value, v.Type, ptr)
 }
-
-// NewGenericColumnValue creates a GenericColumnValue from Go value that is
-// valid for Cloud Spanner.
-func newGenericColumnValue(v interface{}) (*GenericColumnValue, error) {
+func gologoo__newGenericColumnValue_6a1b612599996733c2066401f14792cf(v interface {
+}) (*GenericColumnValue, error) {
 	value, typ, err := encodeValue(v)
 	if err != nil {
 		return nil, err
 	}
 	return &GenericColumnValue{Value: value, Type: typ}, nil
 }
-
-// errTypeMismatch returns error for destination not having a compatible type
-// with source Cloud Spanner type.
-func errTypeMismatch(srcCode, elCode sppb.TypeCode, dst interface{}) error {
+func gologoo__errTypeMismatch_6a1b612599996733c2066401f14792cf(srcCode, elCode sppb.TypeCode, dst interface {
+}) error {
 	s := srcCode.String()
 	if srcCode == sppb.TypeCode_ARRAY {
 		s = fmt.Sprintf("%v[%v]", srcCode, elCode)
 	}
 	return spannerErrorf(codes.InvalidArgument, "type %T cannot be used for decoding %s", dst, s)
 }
-
-// errNilSpannerType returns error for nil Cloud Spanner type in decoding.
-func errNilSpannerType() error {
+func gologoo__errNilSpannerType_6a1b612599996733c2066401f14792cf() error {
 	return spannerErrorf(codes.FailedPrecondition, "unexpected nil Cloud Spanner data type in decoding")
 }
-
-// errNilSrc returns error for decoding from nil proto value.
-func errNilSrc() error {
+func gologoo__errNilSrc_6a1b612599996733c2066401f14792cf() error {
 	return spannerErrorf(codes.FailedPrecondition, "unexpected nil Cloud Spanner value in decoding")
 }
-
-// errNilDst returns error for decoding into nil interface{}.
-func errNilDst(dst interface{}) error {
+func gologoo__errNilDst_6a1b612599996733c2066401f14792cf(dst interface {
+}) error {
 	return spannerErrorf(codes.InvalidArgument, "cannot decode into nil type %T", dst)
 }
-
-// errNilArrElemType returns error for input Cloud Spanner data type being a array but without a
-// non-nil array element type.
-func errNilArrElemType(t *sppb.Type) error {
+func gologoo__errNilArrElemType_6a1b612599996733c2066401f14792cf(t *sppb.Type) error {
 	return spannerErrorf(codes.FailedPrecondition, "array type %v is with nil array element type", t)
 }
-
-func errUnsupportedEmbeddedStructFields(fname string) error {
-	return spannerErrorf(codes.InvalidArgument, "Embedded field: %s. Embedded and anonymous fields are not allowed "+
-		"when converting Go structs to Cloud Spanner STRUCT values. To create a STRUCT value with an "+
-		"unnamed field, use a `spanner:\"\"` field tag.", fname)
+func gologoo__errUnsupportedEmbeddedStructFields_6a1b612599996733c2066401f14792cf(fname string) error {
+	return spannerErrorf(codes.InvalidArgument, "Embedded field: %s. Embedded and anonymous fields are not allowed "+"when converting Go structs to Cloud Spanner STRUCT values. To create a STRUCT value with an "+"unnamed field, use a `spanner:\"\"` field tag.", fname)
 }
-
-// errDstNotForNull returns error for decoding a SQL NULL value into a destination which doesn't
-// support NULL values.
-func errDstNotForNull(dst interface{}) error {
+func gologoo__errDstNotForNull_6a1b612599996733c2066401f14792cf(dst interface {
+}) error {
 	return spannerErrorf(codes.InvalidArgument, "destination %T cannot support NULL SQL values", dst)
 }
-
-// errBadEncoding returns error for decoding wrongly encoded types.
-func errBadEncoding(v *proto3.Value, err error) error {
+func gologoo__errBadEncoding_6a1b612599996733c2066401f14792cf(v *proto3.Value, err error) error {
 	return spannerErrorf(codes.FailedPrecondition, "%v wasn't correctly encoded: <%v>", v, err)
 }
-
-func parseNullTime(v *proto3.Value, p *NullTime, code sppb.TypeCode, isNull bool) error {
+func gologoo__parseNullTime_6a1b612599996733c2066401f14792cf(v *proto3.Value, p *NullTime, code sppb.TypeCode, isNull bool) error {
 	if p == nil {
 		return errNilDst(p)
 	}
@@ -983,10 +747,8 @@ func parseNullTime(v *proto3.Value, p *NullTime, code sppb.TypeCode, isNull bool
 	p.Time = y
 	return nil
 }
-
-// decodeValue decodes a protobuf Value into a pointer to a Go value, as
-// specified by sppb.Type.
-func decodeValue(v *proto3.Value, t *sppb.Type, ptr interface{}) error {
+func gologoo__decodeValue_6a1b612599996733c2066401f14792cf(v *proto3.Value, t *sppb.Type, ptr interface {
+}) error {
 	if v == nil {
 		return errNilSrc()
 	}
@@ -1005,8 +767,6 @@ func decodeValue(v *proto3.Value, t *sppb.Type, ptr interface{}) error {
 		atypeAnnotation = t.ArrayElementType.TypeAnnotation
 	}
 	_, isNull := v.Kind.(*proto3.Value_NullValue)
-
-	// Do the decoding based on the type of ptr.
 	switch p := ptr.(type) {
 	case nil:
 		return errNilDst(nil)
@@ -1026,11 +786,6 @@ func decodeValue(v *proto3.Value, t *sppb.Type, ptr interface{}) error {
 		}
 		*p = x
 	case *NullString, **string, *sql.NullString:
-		// Most Null* types are automatically supported for both spanner.Null* and sql.Null* types, except for
-		// NullString, and we need to add explicit support for it here. The reason that the other types are
-		// automatically supported is that they use the same field names (e.g. spanner.NullBool and sql.NullBool both
-		// contain the fields Valid and Bool). spanner.NullString has a field StringVal, sql.NullString has a field
-		// String.
 		if p == nil {
 			return errNilDst(p)
 		}
@@ -1491,7 +1246,8 @@ func decodeValue(v *proto3.Value, t *sppb.Type, ptr interface{}) error {
 				break
 			}
 			x := v.GetStringValue()
-			var y interface{}
+			var y interface {
+			}
 			err := json.Unmarshal([]byte(x), &y)
 			if err != nil {
 				return err
@@ -1845,8 +1601,6 @@ func decodeValue(v *proto3.Value, t *sppb.Type, ptr interface{}) error {
 	case *GenericColumnValue:
 		*p = GenericColumnValue{Type: t, Value: v}
 	default:
-		// Check if the pointer is a custom type that implements spanner.Decoder
-		// interface.
 		if decodedVal, ok := ptr.(Decoder); ok {
 			x, err := getGenericValue(t, v)
 			if err != nil {
@@ -1854,8 +1608,6 @@ func decodeValue(v *proto3.Value, t *sppb.Type, ptr interface{}) error {
 			}
 			return decodedVal.DecodeSpanner(x)
 		}
-
-		// Check if the pointer is a variant of a base type.
 		decodableType := getDecodableSpannerType(ptr, true)
 		if decodableType != spannerTypeUnknown {
 			if isNull && !decodableType.supportsNull() {
@@ -1863,8 +1615,6 @@ func decodeValue(v *proto3.Value, t *sppb.Type, ptr interface{}) error {
 			}
 			return decodableType.decodeValueToCustomType(v, t, acode, atypeAnnotation, ptr)
 		}
-
-		// Check if the proto encoding is for an array of structs.
 		if !(code == sppb.TypeCode_ARRAY && acode == sppb.TypeCode_STRUCT) {
 			return errTypeMismatch(code, acode, ptr)
 		}
@@ -1873,17 +1623,12 @@ func decodeValue(v *proto3.Value, t *sppb.Type, ptr interface{}) error {
 			return errNilDst(p)
 		}
 		if !isPtrStructPtrSlice(vp.Type()) {
-			// The container is not a slice of struct pointers.
 			return fmt.Errorf("the container is not a slice of struct pointers: %v", errTypeMismatch(code, acode, ptr))
 		}
-		// Only use reflection for nil detection on slow path.
-		// Also, IsNil panics on many types, so check it after the type check.
 		if vp.IsNil() {
 			return errNilDst(p)
 		}
 		if isNull {
-			// The proto Value is encoding NULL, set the pointer to struct
-			// slice to nil as well.
 			vp.Elem().Set(reflect.Zero(vp.Elem().Type()))
 			break
 		}
@@ -1898,8 +1643,6 @@ func decodeValue(v *proto3.Value, t *sppb.Type, ptr interface{}) error {
 	return nil
 }
 
-// decodableSpannerType represents the Go types that a value from a Spanner
-// database can be converted to.
 type decodableSpannerType uint
 
 const (
@@ -1941,9 +1684,7 @@ const (
 	spannerTypeArrayOfPGNumeric
 )
 
-// supportsNull returns true for the Go types that can hold a null value from
-// Spanner.
-func (d decodableSpannerType) supportsNull() bool {
+func (d decodableSpannerType) gologoo__supportsNull_6a1b612599996733c2066401f14792cf() bool {
 	switch d {
 	case spannerTypeNonNullString, spannerTypeNonNullInt64, spannerTypeNonNullBool, spannerTypeNonNullFloat64, spannerTypeNonNullTime, spannerTypeNonNullDate, spannerTypeNonNullNumeric:
 		return false
@@ -1951,13 +1692,6 @@ func (d decodableSpannerType) supportsNull() bool {
 		return true
 	}
 }
-
-// The following list of types represent the struct types that represent a
-// specific Spanner data type in Go. If a pointer to one of these types is
-// passed to decodeValue, the client library will decode one column value into
-// the struct. For pointers to all other struct types, the client library will
-// treat it as a generic struct that should contain a field for each column in
-// the result set that is being decoded.
 
 var typeOfNonNullTime = reflect.TypeOf(time.Time{})
 var typeOfNonNullDate = reflect.TypeOf(civil.Date{})
@@ -1972,9 +1706,8 @@ var typeOfNullNumeric = reflect.TypeOf(NullNumeric{})
 var typeOfNullJSON = reflect.TypeOf(NullJSON{})
 var typeOfPGNumeric = reflect.TypeOf(PGNumeric{})
 
-// getDecodableSpannerType returns the corresponding decodableSpannerType of
-// the given pointer.
-func getDecodableSpannerType(ptr interface{}, isPtr bool) decodableSpannerType {
+func gologoo__getDecodableSpannerType_6a1b612599996733c2066401f14792cf(ptr interface {
+}, isPtr bool) decodableSpannerType {
 	var val reflect.Value
 	var kind reflect.Kind
 	if isPtr {
@@ -2102,7 +1835,6 @@ func getDecodableSpannerType(ptr interface{}, isPtr bool) decodableSpannerType {
 				return spannerTypeArrayOfPGNumeric
 			}
 		case reflect.Slice:
-			// The only array-of-array type that is supported is [][]byte.
 			kind := val.Type().Elem().Elem().Kind()
 			switch kind {
 			case reflect.Uint8:
@@ -2110,14 +1842,10 @@ func getDecodableSpannerType(ptr interface{}, isPtr bool) decodableSpannerType {
 			}
 		}
 	}
-	// Not convertible to a known base type.
 	return spannerTypeUnknown
 }
-
-// decodeValueToCustomType decodes a protobuf Value into a pointer to a Go
-// value. It must be possible to convert the value to the type pointed to by
-// the pointer.
-func (dsc decodableSpannerType) decodeValueToCustomType(v *proto3.Value, t *sppb.Type, acode sppb.TypeCode, atypeAnnotation sppb.TypeAnnotationCode, ptr interface{}) error {
+func (dsc decodableSpannerType) gologoo__decodeValueToCustomType_6a1b612599996733c2066401f14792cf(v *proto3.Value, t *sppb.Type, acode sppb.TypeCode, atypeAnnotation sppb.TypeAnnotationCode, ptr interface {
+}) error {
 	code := t.Code
 	typeAnnotation := t.TypeAnnotation
 	_, isNull := v.Kind.(*proto3.Value_NullValue)
@@ -2127,8 +1855,8 @@ func (dsc decodableSpannerType) decodeValueToCustomType(v *proto3.Value, t *sppb
 	if isNull && !dsc.supportsNull() {
 		return errDstNotForNull(ptr)
 	}
-
-	var result interface{}
+	var result interface {
+	}
 	switch dsc {
 	case spannerTypeNonNullString, spannerTypeNullString:
 		if code != sppb.TypeCode_STRING {
@@ -2255,7 +1983,8 @@ func (dsc decodableSpannerType) decodeValueToCustomType(v *proto3.Value, t *sppb
 			break
 		}
 		x := v.GetStringValue()
-		var y interface{}
+		var y interface {
+		}
 		err := json.Unmarshal([]byte(x), &y)
 		if err != nil {
 			return err
@@ -2464,7 +2193,6 @@ func (dsc decodableSpannerType) decodeValueToCustomType(v *proto3.Value, t *sppb
 		}
 		result = y
 	default:
-		// This should not be possible.
 		return fmt.Errorf("unknown decodable type found: %v", dsc)
 	}
 	source := reflect.Indirect(reflect.ValueOf(result))
@@ -2472,42 +2200,29 @@ func (dsc decodableSpannerType) decodeValueToCustomType(v *proto3.Value, t *sppb
 	destination.Set(source.Convert(destination.Type()))
 	return nil
 }
-
-// errSrvVal returns an error for getting a wrong source protobuf value in decoding.
-func errSrcVal(v *proto3.Value, want string) error {
-	return spannerErrorf(codes.FailedPrecondition, "cannot use %v(Kind: %T) as %s Value",
-		v, v.GetKind(), want)
+func gologoo__errSrcVal_6a1b612599996733c2066401f14792cf(v *proto3.Value, want string) error {
+	return spannerErrorf(codes.FailedPrecondition, "cannot use %v(Kind: %T) as %s Value", v, v.GetKind(), want)
 }
-
-// getStringValue returns the string value encoded in proto3.Value v whose
-// kind is proto3.Value_StringValue.
-func getStringValue(v *proto3.Value) (string, error) {
+func gologoo__getStringValue_6a1b612599996733c2066401f14792cf(v *proto3.Value) (string, error) {
 	if x, ok := v.GetKind().(*proto3.Value_StringValue); ok && x != nil {
 		return x.StringValue, nil
 	}
 	return "", errSrcVal(v, "String")
 }
-
-// getBoolValue returns the bool value encoded in proto3.Value v whose
-// kind is proto3.Value_BoolValue.
-func getBoolValue(v *proto3.Value) (bool, error) {
+func gologoo__getBoolValue_6a1b612599996733c2066401f14792cf(v *proto3.Value) (bool, error) {
 	if x, ok := v.GetKind().(*proto3.Value_BoolValue); ok && x != nil {
 		return x.BoolValue, nil
 	}
 	return false, errSrcVal(v, "Bool")
 }
-
-// getListValue returns the proto3.ListValue contained in proto3.Value v whose
-// kind is proto3.Value_ListValue.
-func getListValue(v *proto3.Value) (*proto3.ListValue, error) {
+func gologoo__getListValue_6a1b612599996733c2066401f14792cf(v *proto3.Value) (*proto3.ListValue, error) {
 	if x, ok := v.GetKind().(*proto3.Value_ListValue); ok && x != nil {
 		return x.ListValue, nil
 	}
 	return nil, errSrcVal(v, "List")
 }
-
-// getGenericValue returns the interface{} value encoded in proto3.Value.
-func getGenericValue(t *sppb.Type, v *proto3.Value) (interface{}, error) {
+func gologoo__getGenericValue_6a1b612599996733c2066401f14792cf(t *sppb.Type, v *proto3.Value) (interface {
+}, error) {
 	switch x := v.GetKind().(type) {
 	case *proto3.Value_NumberValue:
 		return x.NumberValue, nil
@@ -2521,8 +2236,8 @@ func getGenericValue(t *sppb.Type, v *proto3.Value) (interface{}, error) {
 		return 0, errSrcVal(v, "Number, Bool, String")
 	}
 }
-
-func getTypedNil(t *sppb.Type) (interface{}, error) {
+func gologoo__getTypedNil_6a1b612599996733c2066401f14792cf(t *sppb.Type) (interface {
+}, error) {
 	switch t.Code {
 	case sppb.TypeCode_FLOAT64:
 		var f *float64
@@ -2531,29 +2246,17 @@ func getTypedNil(t *sppb.Type) (interface{}, error) {
 		var b *bool
 		return b, nil
 	default:
-		// The encoding for most types is string, except for the ones listed
-		// above.
 		var s *string
 		return s, nil
 	}
 }
-
-// errUnexpectedNumericStr returns error for decoder getting an unexpected
-// string for representing special numeric values.
-func errUnexpectedNumericStr(s string) error {
+func gologoo__errUnexpectedNumericStr_6a1b612599996733c2066401f14792cf(s string) error {
 	return spannerErrorf(codes.FailedPrecondition, "unexpected string value %q for numeric number", s)
 }
-
-// errUnexpectedFloat64Str returns error for decoder getting an unexpected
-// string for representing special float values.
-func errUnexpectedFloat64Str(s string) error {
+func gologoo__errUnexpectedFloat64Str_6a1b612599996733c2066401f14792cf(s string) error {
 	return spannerErrorf(codes.FailedPrecondition, "unexpected string value %q for float64 number", s)
 }
-
-// getFloat64Value returns the float64 value encoded in proto3.Value v whose
-// kind is proto3.Value_NumberValue / proto3.Value_StringValue.
-// Cloud Spanner uses string to encode NaN, Infinity and -Infinity.
-func getFloat64Value(v *proto3.Value) (float64, error) {
+func gologoo__getFloat64Value_6a1b612599996733c2066401f14792cf(v *proto3.Value) (float64, error) {
 	switch x := v.GetKind().(type) {
 	case *proto3.Value_NumberValue:
 		if x == nil {
@@ -2577,26 +2280,19 @@ func getFloat64Value(v *proto3.Value) (float64, error) {
 	}
 	return 0, errSrcVal(v, "Number")
 }
-
-// errNilListValue returns error for unexpected nil ListValue in decoding Cloud Spanner ARRAYs.
-func errNilListValue(sqlType string) error {
+func gologoo__errNilListValue_6a1b612599996733c2066401f14792cf(sqlType string) error {
 	return spannerErrorf(codes.FailedPrecondition, "unexpected nil ListValue in decoding %v array", sqlType)
 }
-
-// errDecodeArrayElement returns error for failure in decoding single array element.
-func errDecodeArrayElement(i int, v proto.Message, sqlType string, err error) error {
+func gologoo__errDecodeArrayElement_6a1b612599996733c2066401f14792cf(i int, v proto.Message, sqlType string, err error) error {
 	var se *Error
 	if !errorAs(err, &se) {
-		return spannerErrorf(codes.Unknown,
-			"cannot decode %v(array element %v) as %v, error = <%v>", v, i, sqlType, err)
+		return spannerErrorf(codes.Unknown, "cannot decode %v(array element %v) as %v, error = <%v>", v, i, sqlType, err)
 	}
 	se.decorate(fmt.Sprintf("cannot decode %v(array element %v) as %v", v, i, sqlType))
 	return se
 }
-
-// decodeGenericArray decodes proto3.ListValue pb into a slice which type is
-// determined through reflection.
-func decodeGenericArray(tp reflect.Type, pb *proto3.ListValue, t *sppb.Type, sqlType string) (interface{}, error) {
+func gologoo__decodeGenericArray_6a1b612599996733c2066401f14792cf(tp reflect.Type, pb *proto3.ListValue, t *sppb.Type, sqlType string) (interface {
+}, error) {
 	if pb == nil {
 		return nil, errNilListValue(sqlType)
 	}
@@ -2608,9 +2304,7 @@ func decodeGenericArray(tp reflect.Type, pb *proto3.ListValue, t *sppb.Type, sql
 	}
 	return a.Interface(), nil
 }
-
-// decodeNullStringArray decodes proto3.ListValue pb into a NullString slice.
-func decodeNullStringArray(pb *proto3.ListValue) ([]NullString, error) {
+func gologoo__decodeNullStringArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]NullString, error) {
 	if pb == nil {
 		return nil, errNilListValue("STRING")
 	}
@@ -2622,9 +2316,7 @@ func decodeNullStringArray(pb *proto3.ListValue) ([]NullString, error) {
 	}
 	return a, nil
 }
-
-// decodeStringPointerArray decodes proto3.ListValue pb into a *string slice.
-func decodeStringPointerArray(pb *proto3.ListValue) ([]*string, error) {
+func gologoo__decodeStringPointerArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]*string, error) {
 	if pb == nil {
 		return nil, errNilListValue("STRING")
 	}
@@ -2636,9 +2328,7 @@ func decodeStringPointerArray(pb *proto3.ListValue) ([]*string, error) {
 	}
 	return a, nil
 }
-
-// decodeStringArray decodes proto3.ListValue pb into a string slice.
-func decodeStringArray(pb *proto3.ListValue) ([]string, error) {
+func gologoo__decodeStringArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]string, error) {
 	if pb == nil {
 		return nil, errNilListValue("STRING")
 	}
@@ -2651,9 +2341,7 @@ func decodeStringArray(pb *proto3.ListValue) ([]string, error) {
 	}
 	return a, nil
 }
-
-// decodeNullInt64Array decodes proto3.ListValue pb into a NullInt64 slice.
-func decodeNullInt64Array(pb *proto3.ListValue) ([]NullInt64, error) {
+func gologoo__decodeNullInt64Array_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]NullInt64, error) {
 	if pb == nil {
 		return nil, errNilListValue("INT64")
 	}
@@ -2665,9 +2353,7 @@ func decodeNullInt64Array(pb *proto3.ListValue) ([]NullInt64, error) {
 	}
 	return a, nil
 }
-
-// decodeInt64PointerArray decodes proto3.ListValue pb into a *int64 slice.
-func decodeInt64PointerArray(pb *proto3.ListValue) ([]*int64, error) {
+func gologoo__decodeInt64PointerArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]*int64, error) {
 	if pb == nil {
 		return nil, errNilListValue("INT64")
 	}
@@ -2679,9 +2365,7 @@ func decodeInt64PointerArray(pb *proto3.ListValue) ([]*int64, error) {
 	}
 	return a, nil
 }
-
-// decodeInt64Array decodes proto3.ListValue pb into a int64 slice.
-func decodeInt64Array(pb *proto3.ListValue) ([]int64, error) {
+func gologoo__decodeInt64Array_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]int64, error) {
 	if pb == nil {
 		return nil, errNilListValue("INT64")
 	}
@@ -2693,9 +2377,7 @@ func decodeInt64Array(pb *proto3.ListValue) ([]int64, error) {
 	}
 	return a, nil
 }
-
-// decodeNullBoolArray decodes proto3.ListValue pb into a NullBool slice.
-func decodeNullBoolArray(pb *proto3.ListValue) ([]NullBool, error) {
+func gologoo__decodeNullBoolArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]NullBool, error) {
 	if pb == nil {
 		return nil, errNilListValue("BOOL")
 	}
@@ -2707,9 +2389,7 @@ func decodeNullBoolArray(pb *proto3.ListValue) ([]NullBool, error) {
 	}
 	return a, nil
 }
-
-// decodeBoolPointerArray decodes proto3.ListValue pb into a *bool slice.
-func decodeBoolPointerArray(pb *proto3.ListValue) ([]*bool, error) {
+func gologoo__decodeBoolPointerArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]*bool, error) {
 	if pb == nil {
 		return nil, errNilListValue("BOOL")
 	}
@@ -2721,9 +2401,7 @@ func decodeBoolPointerArray(pb *proto3.ListValue) ([]*bool, error) {
 	}
 	return a, nil
 }
-
-// decodeBoolArray decodes proto3.ListValue pb into a bool slice.
-func decodeBoolArray(pb *proto3.ListValue) ([]bool, error) {
+func gologoo__decodeBoolArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]bool, error) {
 	if pb == nil {
 		return nil, errNilListValue("BOOL")
 	}
@@ -2735,9 +2413,7 @@ func decodeBoolArray(pb *proto3.ListValue) ([]bool, error) {
 	}
 	return a, nil
 }
-
-// decodeNullFloat64Array decodes proto3.ListValue pb into a NullFloat64 slice.
-func decodeNullFloat64Array(pb *proto3.ListValue) ([]NullFloat64, error) {
+func gologoo__decodeNullFloat64Array_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]NullFloat64, error) {
 	if pb == nil {
 		return nil, errNilListValue("FLOAT64")
 	}
@@ -2749,9 +2425,7 @@ func decodeNullFloat64Array(pb *proto3.ListValue) ([]NullFloat64, error) {
 	}
 	return a, nil
 }
-
-// decodeFloat64PointerArray decodes proto3.ListValue pb into a *float slice.
-func decodeFloat64PointerArray(pb *proto3.ListValue) ([]*float64, error) {
+func gologoo__decodeFloat64PointerArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]*float64, error) {
 	if pb == nil {
 		return nil, errNilListValue("FLOAT64")
 	}
@@ -2763,9 +2437,7 @@ func decodeFloat64PointerArray(pb *proto3.ListValue) ([]*float64, error) {
 	}
 	return a, nil
 }
-
-// decodeFloat64Array decodes proto3.ListValue pb into a float64 slice.
-func decodeFloat64Array(pb *proto3.ListValue) ([]float64, error) {
+func gologoo__decodeFloat64Array_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]float64, error) {
 	if pb == nil {
 		return nil, errNilListValue("FLOAT64")
 	}
@@ -2777,9 +2449,7 @@ func decodeFloat64Array(pb *proto3.ListValue) ([]float64, error) {
 	}
 	return a, nil
 }
-
-// decodeNullNumericArray decodes proto3.ListValue pb into a NullNumeric slice.
-func decodeNullNumericArray(pb *proto3.ListValue) ([]NullNumeric, error) {
+func gologoo__decodeNullNumericArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]NullNumeric, error) {
 	if pb == nil {
 		return nil, errNilListValue("NUMERIC")
 	}
@@ -2791,9 +2461,7 @@ func decodeNullNumericArray(pb *proto3.ListValue) ([]NullNumeric, error) {
 	}
 	return a, nil
 }
-
-// decodeNullJSONArray decodes proto3.ListValue pb into a NullJSON slice.
-func decodeNullJSONArray(pb *proto3.ListValue) ([]NullJSON, error) {
+func gologoo__decodeNullJSONArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]NullJSON, error) {
 	if pb == nil {
 		return nil, errNilListValue("JSON")
 	}
@@ -2805,9 +2473,7 @@ func decodeNullJSONArray(pb *proto3.ListValue) ([]NullJSON, error) {
 	}
 	return a, nil
 }
-
-// decodeNullJSONArray decodes proto3.ListValue pb into a NullJSON pointer.
-func decodeNullJSONArrayToNullJSON(pb *proto3.ListValue) (*NullJSON, error) {
+func gologoo__decodeNullJSONArrayToNullJSON_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) (*NullJSON, error) {
 	if pb == nil {
 		return nil, errNilListValue("JSON")
 	}
@@ -2820,16 +2486,15 @@ func decodeNullJSONArrayToNullJSON(pb *proto3.ListValue) (*NullJSON, error) {
 		}
 	}
 	s := fmt.Sprintf("[%s]", strings.Join(strs, ","))
-	var y interface{}
+	var y interface {
+	}
 	err := json.Unmarshal([]byte(s), &y)
 	if err != nil {
 		return nil, err
 	}
 	return &NullJSON{y, true}, nil
 }
-
-// decodeNumericPointerArray decodes proto3.ListValue pb into a *big.Rat slice.
-func decodeNumericPointerArray(pb *proto3.ListValue) ([]*big.Rat, error) {
+func gologoo__decodeNumericPointerArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]*big.Rat, error) {
 	if pb == nil {
 		return nil, errNilListValue("NUMERIC")
 	}
@@ -2841,9 +2506,7 @@ func decodeNumericPointerArray(pb *proto3.ListValue) ([]*big.Rat, error) {
 	}
 	return a, nil
 }
-
-// decodeNumericArray decodes proto3.ListValue pb into a big.Rat slice.
-func decodeNumericArray(pb *proto3.ListValue) ([]big.Rat, error) {
+func gologoo__decodeNumericArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]big.Rat, error) {
 	if pb == nil {
 		return nil, errNilListValue("NUMERIC")
 	}
@@ -2855,9 +2518,7 @@ func decodeNumericArray(pb *proto3.ListValue) ([]big.Rat, error) {
 	}
 	return a, nil
 }
-
-// decodePGNumericArray decodes proto3.ListValue pb into a PGNumeric slice.
-func decodePGNumericArray(pb *proto3.ListValue) ([]PGNumeric, error) {
+func gologoo__decodePGNumericArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]PGNumeric, error) {
 	if pb == nil {
 		return nil, errNilListValue("PGNUMERIC")
 	}
@@ -2869,9 +2530,7 @@ func decodePGNumericArray(pb *proto3.ListValue) ([]PGNumeric, error) {
 	}
 	return a, nil
 }
-
-// decodeByteArray decodes proto3.ListValue pb into a slice of byte slice.
-func decodeByteArray(pb *proto3.ListValue) ([][]byte, error) {
+func gologoo__decodeByteArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([][]byte, error) {
 	if pb == nil {
 		return nil, errNilListValue("BYTES")
 	}
@@ -2883,9 +2542,7 @@ func decodeByteArray(pb *proto3.ListValue) ([][]byte, error) {
 	}
 	return a, nil
 }
-
-// decodeNullTimeArray decodes proto3.ListValue pb into a NullTime slice.
-func decodeNullTimeArray(pb *proto3.ListValue) ([]NullTime, error) {
+func gologoo__decodeNullTimeArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]NullTime, error) {
 	if pb == nil {
 		return nil, errNilListValue("TIMESTAMP")
 	}
@@ -2897,9 +2554,7 @@ func decodeNullTimeArray(pb *proto3.ListValue) ([]NullTime, error) {
 	}
 	return a, nil
 }
-
-// decodeTimePointerArray decodes proto3.ListValue pb into a NullTime slice.
-func decodeTimePointerArray(pb *proto3.ListValue) ([]*time.Time, error) {
+func gologoo__decodeTimePointerArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]*time.Time, error) {
 	if pb == nil {
 		return nil, errNilListValue("TIMESTAMP")
 	}
@@ -2911,9 +2566,7 @@ func decodeTimePointerArray(pb *proto3.ListValue) ([]*time.Time, error) {
 	}
 	return a, nil
 }
-
-// decodeTimeArray decodes proto3.ListValue pb into a time.Time slice.
-func decodeTimeArray(pb *proto3.ListValue) ([]time.Time, error) {
+func gologoo__decodeTimeArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]time.Time, error) {
 	if pb == nil {
 		return nil, errNilListValue("TIMESTAMP")
 	}
@@ -2925,9 +2578,7 @@ func decodeTimeArray(pb *proto3.ListValue) ([]time.Time, error) {
 	}
 	return a, nil
 }
-
-// decodeNullDateArray decodes proto3.ListValue pb into a NullDate slice.
-func decodeNullDateArray(pb *proto3.ListValue) ([]NullDate, error) {
+func gologoo__decodeNullDateArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]NullDate, error) {
 	if pb == nil {
 		return nil, errNilListValue("DATE")
 	}
@@ -2939,9 +2590,7 @@ func decodeNullDateArray(pb *proto3.ListValue) ([]NullDate, error) {
 	}
 	return a, nil
 }
-
-// decodeDatePointerArray decodes proto3.ListValue pb into a *civil.Date slice.
-func decodeDatePointerArray(pb *proto3.ListValue) ([]*civil.Date, error) {
+func gologoo__decodeDatePointerArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]*civil.Date, error) {
 	if pb == nil {
 		return nil, errNilListValue("DATE")
 	}
@@ -2953,9 +2602,7 @@ func decodeDatePointerArray(pb *proto3.ListValue) ([]*civil.Date, error) {
 	}
 	return a, nil
 }
-
-// decodeDateArray decodes proto3.ListValue pb into a civil.Date slice.
-func decodeDateArray(pb *proto3.ListValue) ([]civil.Date, error) {
+func gologoo__decodeDateArray_6a1b612599996733c2066401f14792cf(pb *proto3.ListValue) ([]civil.Date, error) {
 	if pb == nil {
 		return nil, errNilListValue("DATE")
 	}
@@ -2967,15 +2614,10 @@ func decodeDateArray(pb *proto3.ListValue) ([]civil.Date, error) {
 	}
 	return a, nil
 }
-
-func errNotStructElement(i int, v *proto3.Value) error {
-	return errDecodeArrayElement(i, v, "STRUCT",
-		spannerErrorf(codes.FailedPrecondition, "%v(type: %T) doesn't encode Cloud Spanner STRUCT", v, v))
+func gologoo__errNotStructElement_6a1b612599996733c2066401f14792cf(i int, v *proto3.Value) error {
+	return errDecodeArrayElement(i, v, "STRUCT", spannerErrorf(codes.FailedPrecondition, "%v(type: %T) doesn't encode Cloud Spanner STRUCT", v, v))
 }
-
-// decodeRowArray decodes proto3.ListValue pb into a NullRow slice according to
-// the structural information given in sppb.StructType ty.
-func decodeRowArray(ty *sppb.StructType, pb *proto3.ListValue) ([]NullRow, error) {
+func gologoo__decodeRowArray_6a1b612599996733c2066401f14792cf(ty *sppb.StructType, pb *proto3.ListValue) ([]NullRow, error) {
 	if pb == nil {
 		return nil, errNilListValue("STRUCT")
 	}
@@ -2983,86 +2625,53 @@ func decodeRowArray(ty *sppb.StructType, pb *proto3.ListValue) ([]NullRow, error
 	for i := range pb.Values {
 		switch v := pb.Values[i].GetKind().(type) {
 		case *proto3.Value_ListValue:
-			a[i] = NullRow{
-				Row: Row{
-					fields: ty.Fields,
-					vals:   v.ListValue.Values,
-				},
-				Valid: true,
-			}
-		// Null elements not currently supported by the server, see
-		// https://cloud.google.com/spanner/docs/query-syntax#using-structs-with-select
+			a[i] = NullRow{Row: Row{fields: ty.Fields, vals: v.ListValue.Values}, Valid: true}
 		case *proto3.Value_NullValue:
-			// no-op, a[i] is NullRow{} already
 		default:
 			return nil, errNotStructElement(i, pb.Values[i])
 		}
 	}
 	return a, nil
 }
-
-// errNilSpannerStructType returns error for unexpected nil Cloud Spanner STRUCT
-// schema type in decoding.
-func errNilSpannerStructType() error {
+func gologoo__errNilSpannerStructType_6a1b612599996733c2066401f14792cf() error {
 	return spannerErrorf(codes.FailedPrecondition, "unexpected nil StructType in decoding Cloud Spanner STRUCT")
 }
-
-// errDupGoField returns error for duplicated Go STRUCT field names
-func errDupGoField(s interface{}, name string) error {
+func gologoo__errDupGoField_6a1b612599996733c2066401f14792cf(s interface {
+}, name string) error {
 	return spannerErrorf(codes.InvalidArgument, "Go struct %+v(type %T) has duplicate fields for GO STRUCT field %s", s, s, name)
 }
-
-// errUnnamedField returns error for decoding a Cloud Spanner STRUCT with
-// unnamed field into a Go struct.
-func errUnnamedField(ty *sppb.StructType, i int) error {
+func gologoo__errUnnamedField_6a1b612599996733c2066401f14792cf(ty *sppb.StructType, i int) error {
 	return spannerErrorf(codes.InvalidArgument, "unnamed field %v in Cloud Spanner STRUCT %+v", i, ty)
 }
-
-// errNoOrDupGoField returns error for decoding a Cloud Spanner
-// STRUCT into a Go struct which is either missing a field, or has duplicate
-// fields.
-func errNoOrDupGoField(s interface{}, f string) error {
+func gologoo__errNoOrDupGoField_6a1b612599996733c2066401f14792cf(s interface {
+}, f string) error {
 	return spannerErrorf(codes.InvalidArgument, "Go struct %+v(type %T) has no or duplicate fields for Cloud Spanner STRUCT field %v", s, s, f)
 }
-
-// errDupColNames returns error for duplicated Cloud Spanner STRUCT field names
-// found in decoding a Cloud Spanner STRUCT into a Go struct.
-func errDupSpannerField(f string, ty *sppb.StructType) error {
+func gologoo__errDupSpannerField_6a1b612599996733c2066401f14792cf(f string, ty *sppb.StructType) error {
 	return spannerErrorf(codes.InvalidArgument, "duplicated field name %q in Cloud Spanner STRUCT %+v", f, ty)
 }
-
-// errDecodeStructField returns error for failure in decoding a single field of
-// a Cloud Spanner STRUCT.
-func errDecodeStructField(ty *sppb.StructType, f string, err error) error {
+func gologoo__errDecodeStructField_6a1b612599996733c2066401f14792cf(ty *sppb.StructType, f string, err error) error {
 	var se *Error
 	if !errorAs(err, &se) {
-		return spannerErrorf(codes.Unknown,
-			"cannot decode field %v of Cloud Spanner STRUCT %+v, error = <%v>", f, ty, err)
+		return spannerErrorf(codes.Unknown, "cannot decode field %v of Cloud Spanner STRUCT %+v, error = <%v>", f, ty, err)
 	}
 	se.decorate(fmt.Sprintf("cannot decode field %v of Cloud Spanner STRUCT %+v", f, ty))
 	return se
 }
-
-// decodeStruct decodes proto3.ListValue pb into struct referenced by pointer
-// ptr, according to
-// the structural information given in sppb.StructType ty.
-func decodeStruct(ty *sppb.StructType, pb *proto3.ListValue, ptr interface{}, lenient bool) error {
+func gologoo__decodeStruct_6a1b612599996733c2066401f14792cf(ty *sppb.StructType, pb *proto3.ListValue, ptr interface {
+}, lenient bool) error {
 	if reflect.ValueOf(ptr).IsNil() {
 		return errNilDst(ptr)
 	}
 	if ty == nil {
 		return errNilSpannerStructType()
 	}
-	// t holds the structural information of ptr.
 	t := reflect.TypeOf(ptr).Elem()
-	// v is the actual value that ptr points to.
 	v := reflect.ValueOf(ptr).Elem()
-
 	fields, err := fieldCache.Fields(t)
 	if err != nil {
 		return ToSpannerError(err)
 	}
-	// return error if lenient is true and destination has duplicate exported columns
 	if lenient {
 		fieldNames := getAllFieldNames(v)
 		for _, f := range fieldNames {
@@ -3084,80 +2693,56 @@ func decodeStruct(ty *sppb.StructType, pb *proto3.ListValue, ptr interface{}, le
 			return errNoOrDupGoField(ptr, f.Name)
 		}
 		if seen[f.Name] {
-			// We don't allow duplicated field name.
 			return errDupSpannerField(f.Name, ty)
 		}
-		// Try to decode a single field.
 		if err := decodeValue(pb.Values[i], f.Type, v.FieldByIndex(sf.Index).Addr().Interface()); err != nil {
 			return errDecodeStructField(ty, f.Name, err)
 		}
-		// Mark field f.Name as processed.
 		seen[f.Name] = true
 	}
 	return nil
 }
-
-// isPtrStructPtrSlice returns true if ptr is a pointer to a slice of struct pointers.
-func isPtrStructPtrSlice(t reflect.Type) bool {
+func gologoo__isPtrStructPtrSlice_6a1b612599996733c2066401f14792cf(t reflect.Type) bool {
 	if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Slice {
-		// t is not a pointer to a slice.
 		return false
 	}
 	if t = t.Elem(); t.Elem().Kind() != reflect.Ptr || t.Elem().Elem().Kind() != reflect.Struct {
-		// the slice that t points to is not a slice of struct pointers.
 		return false
 	}
 	return true
 }
-
-// decodeStructArray decodes proto3.ListValue pb into struct slice referenced by
-// pointer ptr, according to the
-// structural information given in a sppb.StructType.
-func decodeStructArray(ty *sppb.StructType, pb *proto3.ListValue, ptr interface{}) error {
+func gologoo__decodeStructArray_6a1b612599996733c2066401f14792cf(ty *sppb.StructType, pb *proto3.ListValue, ptr interface {
+}) error {
 	if pb == nil {
 		return errNilListValue("STRUCT")
 	}
-	// Type of the struct pointers stored in the slice that ptr points to.
 	ts := reflect.TypeOf(ptr).Elem().Elem()
-	// The slice that ptr points to, might be nil at this point.
 	v := reflect.ValueOf(ptr).Elem()
-	// Allocate empty slice.
 	v.Set(reflect.MakeSlice(v.Type(), 0, len(pb.Values)))
-	// Decode every struct in pb.Values.
 	for i, pv := range pb.Values {
-		// Check if pv is a NULL value.
 		if _, isNull := pv.Kind.(*proto3.Value_NullValue); isNull {
-			// Append a nil pointer to the slice.
 			v.Set(reflect.Append(v, reflect.New(ts).Elem()))
 			continue
 		}
-		// Allocate empty struct.
 		s := reflect.New(ts.Elem())
-		// Get proto3.ListValue l from proto3.Value pv.
 		l, err := getListValue(pv)
 		if err != nil {
 			return errDecodeArrayElement(i, pv, "STRUCT", err)
 		}
-		// Decode proto3.ListValue l into struct referenced by s.Interface().
 		if err = decodeStruct(ty, l, s.Interface(), false); err != nil {
 			return errDecodeArrayElement(i, pv, "STRUCT", err)
 		}
-		// Append the decoded struct back into the slice.
 		v.Set(reflect.Append(v, s))
 	}
 	return nil
 }
-
-func getAllFieldNames(v reflect.Value) []string {
+func gologoo__getAllFieldNames_6a1b612599996733c2066401f14792cf(v reflect.Value) []string {
 	var names []string
 	typeOfT := v.Type()
 	for i := 0; i < v.NumField(); i++ {
 		f := v.Field(i)
 		fieldType := typeOfT.Field(i)
 		exported := (fieldType.PkgPath == "")
-		// If a named field is unexported, ignore it. An anonymous
-		// unexported field is processed, because it may contain
-		// exported fields, which are visible.
 		if !exported && !fieldType.Anonymous {
 			continue
 		}
@@ -3178,18 +2763,13 @@ func getAllFieldNames(v reflect.Value) []string {
 	}
 	return names
 }
-
-// errEncoderUnsupportedType returns error for not being able to encode a value
-// of certain type.
-func errEncoderUnsupportedType(v interface{}) error {
+func gologoo__errEncoderUnsupportedType_6a1b612599996733c2066401f14792cf(v interface {
+}) error {
 	return spannerErrorf(codes.InvalidArgument, "client doesn't support type %T", v)
 }
-
-// encodeValue encodes a Go native type into a proto3.Value.
-func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
-	pb := &proto3.Value{
-		Kind: &proto3.Value_NullValue{NullValue: proto3.NullValue_NULL_VALUE},
-	}
+func gologoo__encodeValue_6a1b612599996733c2066401f14792cf(v interface {
+}) (*proto3.Value, *sppb.Type, error) {
+	pb := &proto3.Value{Kind: &proto3.Value_NullValue{NullValue: proto3.NullValue_NULL_VALUE}}
 	var pt *sppb.Type
 	var err error
 	switch v := v.(type) {
@@ -3209,7 +2789,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = stringType()
 	case []string:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3217,7 +2800,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = listType(stringType())
 	case []NullString:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3230,7 +2816,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = stringType()
 	case []*string:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3243,7 +2832,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = bytesType()
 	case [][]byte:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3254,7 +2846,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = intType()
 	case []int:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3265,7 +2860,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = intType()
 	case []int64:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3278,7 +2876,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = intType()
 	case []NullInt64:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3291,7 +2892,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = intType()
 	case []*int64:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3302,7 +2906,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = boolType()
 	case []bool:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3315,7 +2922,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = boolType()
 	case []NullBool:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3328,7 +2938,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = boolType()
 	case []*bool:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3339,7 +2952,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = floatType()
 	case []float64:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3352,7 +2968,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = floatType()
 	case []NullFloat64:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3365,7 +2984,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = floatType()
 	case []*float64:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3379,13 +3001,15 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 				return nil, nil, err
 			}
 		case NumericRound:
-			// pass
 		}
 		pb.Kind = stringKind(NumericString(&v))
 		pt = numericType()
 	case []big.Rat:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3398,7 +3022,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = numericType()
 	case []NullNumeric:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3411,7 +3038,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		return pb, pgNumericType(), nil
 	case []PGNumeric:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3428,7 +3058,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		return pb, jsonType(), nil
 	case []NullJSON:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3442,7 +3075,6 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 				return nil, nil, err
 			}
 		case NumericRound:
-			// pass
 		}
 		if v != nil {
 			pb.Kind = stringKind(NumericString(v))
@@ -3450,7 +3082,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = numericType()
 	case []*big.Rat:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3465,7 +3100,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = timeType()
 	case []time.Time:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3478,7 +3116,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = timeType()
 	case []NullTime:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3491,7 +3132,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = timeType()
 	case []*time.Time:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3502,7 +3146,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = dateType()
 	case []civil.Date:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3515,7 +3162,10 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = dateType()
 	case []NullDate:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
@@ -3528,22 +3178,21 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		pt = dateType()
 	case []*civil.Date:
 		if v != nil {
-			pb, err = encodeArray(len(v), func(i int) interface{} { return v[i] })
+			pb, err = encodeArray(len(v), func(i int) interface {
+			} {
+				return v[i]
+			})
 			if err != nil {
 				return nil, nil, err
 			}
 		}
 		pt = listType(dateType())
 	case GenericColumnValue:
-		// Deep clone to ensure subsequent changes to v before
-		// transmission don't affect our encoded value.
 		pb = proto.Clone(v.Value).(*proto3.Value)
 		pt = proto.Clone(v.Type).(*sppb.Type)
 	case []GenericColumnValue:
 		return nil, nil, errEncoderUnsupportedType(v)
 	default:
-		// Check if the value is a custom type that implements spanner.Encoder
-		// interface.
 		if encodedVal, ok := v.(Encoder); ok {
 			nv, err := encodedVal.EncodeSpanner()
 			if err != nil {
@@ -3551,8 +3200,6 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 			}
 			return encodeValue(nv)
 		}
-
-		// Check if the value is a variant of a base type.
 		decodableType := getDecodableSpannerType(v, false)
 		if decodableType != spannerTypeUnknown && decodableType != spannerTypeInvalid {
 			converted, err := convertCustomTypeValue(decodableType, v)
@@ -3561,29 +3208,22 @@ func encodeValue(v interface{}) (*proto3.Value, *sppb.Type, error) {
 			}
 			return encodeValue(converted)
 		}
-
 		if !isStructOrArrayOfStructValue(v) {
 			return nil, nil, errEncoderUnsupportedType(v)
 		}
 		typ := reflect.TypeOf(v)
-
-		// Value is a Go struct value/ptr.
-		if (typ.Kind() == reflect.Struct) ||
-			(typ.Kind() == reflect.Ptr && typ.Elem().Kind() == reflect.Struct) {
+		if (typ.Kind() == reflect.Struct) || (typ.Kind() == reflect.Ptr && typ.Elem().Kind() == reflect.Struct) {
 			return encodeStruct(v)
 		}
-
-		// Value is a slice of Go struct values/ptrs.
 		if typ.Kind() == reflect.Slice {
 			return encodeStructArray(v)
 		}
 	}
 	return pb, pt, nil
 }
-
-func convertCustomTypeValue(sourceType decodableSpannerType, v interface{}) (interface{}, error) {
-	// destination will be initialized to a base type. The input value will be
-	// converted to this type and copied to destination.
+func gologoo__convertCustomTypeValue_6a1b612599996733c2066401f14792cf(sourceType decodableSpannerType, v interface {
+}) (interface {
+}, error) {
 	var destination reflect.Value
 	switch sourceType {
 	case spannerTypeInvalid:
@@ -3593,8 +3233,6 @@ func convertCustomTypeValue(sourceType decodableSpannerType, v interface{}) (int
 	case spannerTypeNullString:
 		destination = reflect.Indirect(reflect.New(reflect.TypeOf(NullString{})))
 	case spannerTypeByteArray:
-		// Return a nil array directly if the input value is nil instead of
-		// creating an empty slice and returning that.
 		if reflect.ValueOf(v).IsNil() {
 			return []byte(nil), nil
 		}
@@ -3713,12 +3351,8 @@ func convertCustomTypeValue(sourceType decodableSpannerType, v interface{}) (int
 		}
 		destination = reflect.MakeSlice(reflect.TypeOf([]PGNumeric{}), reflect.ValueOf(v).Len(), reflect.ValueOf(v).Cap())
 	default:
-		// This should not be possible.
 		return nil, fmt.Errorf("unknown decodable type found: %v", sourceType)
 	}
-	// destination has been initialized. Convert and copy the input value to
-	// destination. That must be done per element if the input type is a slice
-	// or an array.
 	if destination.Kind() == reflect.Slice || destination.Kind() == reflect.Array {
 		sourceSlice := reflect.ValueOf(v)
 		for i := 0; i < destination.Len(); i++ {
@@ -3729,22 +3363,15 @@ func convertCustomTypeValue(sourceType decodableSpannerType, v interface{}) (int
 		source := reflect.ValueOf(v)
 		destination.Set(source.Convert(destination.Type()))
 	}
-	// Return the converted value.
 	return destination.Interface(), nil
 }
-
-// Encodes a Go struct value/ptr in v to the spanner Value and Type protos. v
-// itself must be non-nil.
-func encodeStruct(v interface{}) (*proto3.Value, *sppb.Type, error) {
+func gologoo__encodeStruct_6a1b612599996733c2066401f14792cf(v interface {
+}) (*proto3.Value, *sppb.Type, error) {
 	typ := reflect.TypeOf(v)
 	val := reflect.ValueOf(v)
-
-	// Pointer to struct.
 	if typ.Kind() == reflect.Ptr && typ.Elem().Kind() == reflect.Struct {
 		typ = typ.Elem()
 		if val.IsNil() {
-			// nil pointer to struct, representing a NULL STRUCT value. Use a
-			// dummy value to get the type.
 			_, st, err := encodeStruct(reflect.Zero(typ).Interface())
 			if err != nil {
 				return nil, nil, err
@@ -3753,71 +3380,48 @@ func encodeStruct(v interface{}) (*proto3.Value, *sppb.Type, error) {
 		}
 		val = val.Elem()
 	}
-
 	if typ.Kind() != reflect.Struct {
 		return nil, nil, errEncoderUnsupportedType(v)
 	}
-
 	stf := make([]*sppb.StructType_Field, 0, typ.NumField())
 	stv := make([]*proto3.Value, 0, typ.NumField())
-
 	for i := 0; i < typ.NumField(); i++ {
-		// If the field has a 'spanner' tag, use the value of that tag as the field name.
-		// This is used to build STRUCT types with unnamed/duplicate fields.
 		sf := typ.Field(i)
 		fval := val.Field(i)
-
-		// Embedded fields are not allowed.
 		if sf.Anonymous {
 			return nil, nil, errUnsupportedEmbeddedStructFields(sf.Name)
 		}
-
-		// Unexported fields are ignored.
 		if !fval.CanInterface() {
 			continue
 		}
-
 		fname, ok := sf.Tag.Lookup("spanner")
 		if !ok {
 			fname = sf.Name
 		}
-
 		eval, etype, err := encodeValue(fval.Interface())
 		if err != nil {
 			return nil, nil, err
 		}
-
 		stf = append(stf, mkField(fname, etype))
 		stv = append(stv, eval)
 	}
-
 	return listProto(stv...), structType(stf...), nil
 }
-
-// Encodes a slice of Go struct values/ptrs in v to the spanner Value and Type
-// protos. v itself must be non-nil.
-func encodeStructArray(v interface{}) (*proto3.Value, *sppb.Type, error) {
+func gologoo__encodeStructArray_6a1b612599996733c2066401f14792cf(v interface {
+}) (*proto3.Value, *sppb.Type, error) {
 	etyp := reflect.TypeOf(v).Elem()
 	sliceval := reflect.ValueOf(v)
-
-	// Slice of pointers to structs.
 	if etyp.Kind() == reflect.Ptr {
 		etyp = etyp.Elem()
 	}
-
-	// Use a dummy struct value to get the element type.
 	_, elemTyp, err := encodeStruct(reflect.Zero(etyp).Interface())
 	if err != nil {
 		return nil, nil, err
 	}
-
-	// nil slice represents a NULL array-of-struct.
 	if sliceval.IsNil() {
 		return nullProto(), listType(elemTyp), nil
 	}
-
 	values := make([]*proto3.Value, 0, sliceval.Len())
-
 	for i := 0; i < sliceval.Len(); i++ {
 		ev, _, err := encodeStruct(sliceval.Index(i).Interface())
 		if err != nil {
@@ -3827,8 +3431,8 @@ func encodeStructArray(v interface{}) (*proto3.Value, *sppb.Type, error) {
 	}
 	return listProto(values...), listType(elemTyp), nil
 }
-
-func isStructOrArrayOfStructValue(v interface{}) bool {
+func gologoo__isStructOrArrayOfStructValue_6a1b612599996733c2066401f14792cf(v interface {
+}) bool {
 	typ := reflect.TypeOf(v)
 	if typ.Kind() == reflect.Slice {
 		typ = typ.Elem()
@@ -3838,32 +3442,21 @@ func isStructOrArrayOfStructValue(v interface{}) bool {
 	}
 	return typ.Kind() == reflect.Struct
 }
-
-func isSupportedMutationType(v interface{}) bool {
+func gologoo__isSupportedMutationType_6a1b612599996733c2066401f14792cf(v interface {
+}) bool {
 	switch v.(type) {
-	case nil, string, *string, NullString, []string, []*string, []NullString,
-		[]byte, [][]byte,
-		int, []int, int64, *int64, []int64, []*int64, NullInt64, []NullInt64,
-		bool, *bool, []bool, []*bool, NullBool, []NullBool,
-		float64, *float64, []float64, []*float64, NullFloat64, []NullFloat64,
-		time.Time, *time.Time, []time.Time, []*time.Time, NullTime, []NullTime,
-		civil.Date, *civil.Date, []civil.Date, []*civil.Date, NullDate, []NullDate,
-		big.Rat, *big.Rat, []big.Rat, []*big.Rat, NullNumeric, []NullNumeric,
-		GenericColumnValue:
+	case nil, string, *string, NullString, []string, []*string, []NullString, []byte, [][]byte, int, []int, int64, *int64, []int64, []*int64, NullInt64, []NullInt64, bool, *bool, []bool, []*bool, NullBool, []NullBool, float64, *float64, []float64, []*float64, NullFloat64, []NullFloat64, time.Time, *time.Time, []time.Time, []*time.Time, NullTime, []NullTime, civil.Date, *civil.Date, []civil.Date, []*civil.Date, NullDate, []NullDate, big.Rat, *big.Rat, []big.Rat, []*big.Rat, NullNumeric, []NullNumeric, GenericColumnValue:
 		return true
 	default:
-		// Check if the custom type implements spanner.Encoder interface.
 		if _, ok := v.(Encoder); ok {
 			return true
 		}
-
 		decodableType := getDecodableSpannerType(v, false)
 		return decodableType != spannerTypeUnknown && decodableType != spannerTypeInvalid
 	}
 }
-
-// encodeValueArray encodes a Value array into a proto3.ListValue.
-func encodeValueArray(vs []interface{}) (*proto3.ListValue, error) {
+func gologoo__encodeValueArray_6a1b612599996733c2066401f14792cf(vs []interface {
+}) (*proto3.ListValue, error) {
 	lv := &proto3.ListValue{}
 	lv.Values = make([]*proto3.Value, 0, len(vs))
 	for _, v := range vs {
@@ -3878,10 +3471,8 @@ func encodeValueArray(vs []interface{}) (*proto3.ListValue, error) {
 	}
 	return lv, nil
 }
-
-// encodeArray assumes that all values of the array element type encode without
-// error.
-func encodeArray(len int, at func(int) interface{}) (*proto3.Value, error) {
+func gologoo__encodeArray_6a1b612599996733c2066401f14792cf(len int, at func(int) interface {
+}) (*proto3.Value, error) {
 	vs := make([]*proto3.Value, len)
 	var err error
 	for i := 0; i < len; i++ {
@@ -3892,8 +3483,8 @@ func encodeArray(len int, at func(int) interface{}) (*proto3.Value, error) {
 	}
 	return listProto(vs...), nil
 }
-
-func spannerTagParser(t reflect.StructTag) (name string, keep bool, other interface{}, err error) {
+func gologoo__spannerTagParser_6a1b612599996733c2066401f14792cf(t reflect.StructTag) (name string, keep bool, other interface {
+}, err error) {
 	if s := t.Get("spanner"); s != "" {
 		if s == "-" {
 			return "", false, nil, nil
@@ -3905,10 +3496,1122 @@ func spannerTagParser(t reflect.StructTag) (name string, keep bool, other interf
 
 var fieldCache = fields.NewCache(spannerTagParser, nil, nil)
 
-func trimDoubleQuotes(payload []byte) ([]byte, error) {
+func gologoo__trimDoubleQuotes_6a1b612599996733c2066401f14792cf(payload []byte) ([]byte, error) {
 	if len(payload) <= 1 || payload[0] != '"' || payload[len(payload)-1] != '"' {
 		return nil, fmt.Errorf("payload is too short or not wrapped with double quotes: got %q", string(payload))
 	}
-	// Remove the double quotes at the beginning and the end.
 	return payload[1 : len(payload)-1], nil
+}
+func NumericString(r *big.Rat) string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__NumericString_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", r)
+	r0 := gologoo__NumericString_6a1b612599996733c2066401f14792cf(r)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func validateNumeric(r *big.Rat) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__validateNumeric_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", r)
+	r0 := gologoo__validateNumeric_6a1b612599996733c2066401f14792cf(r)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullInt64) IsNull() bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__IsNull_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__IsNull_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullInt64) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__String_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullInt64) MarshalJSON() ([]byte, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0, r1 := n.gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (n *NullInt64) UnmarshalJSON(payload []byte) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", payload)
+	r0 := n.gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullInt64) Value() (driver.Value, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Value_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0, r1 := n.gologoo__Value_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (n *NullInt64) Scan(value interface {
+}) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Scan_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", value)
+	r0 := n.gologoo__Scan_6a1b612599996733c2066401f14792cf(value)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullInt64) GormDataType() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__GormDataType_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__GormDataType_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullString) IsNull() bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__IsNull_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__IsNull_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullString) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__String_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullString) MarshalJSON() ([]byte, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0, r1 := n.gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (n *NullString) UnmarshalJSON(payload []byte) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", payload)
+	r0 := n.gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullString) Value() (driver.Value, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Value_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0, r1 := n.gologoo__Value_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (n *NullString) Scan(value interface {
+}) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Scan_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", value)
+	r0 := n.gologoo__Scan_6a1b612599996733c2066401f14792cf(value)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullString) GormDataType() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__GormDataType_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__GormDataType_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullFloat64) IsNull() bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__IsNull_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__IsNull_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullFloat64) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__String_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullFloat64) MarshalJSON() ([]byte, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0, r1 := n.gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (n *NullFloat64) UnmarshalJSON(payload []byte) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", payload)
+	r0 := n.gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullFloat64) Value() (driver.Value, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Value_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0, r1 := n.gologoo__Value_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (n *NullFloat64) Scan(value interface {
+}) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Scan_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", value)
+	r0 := n.gologoo__Scan_6a1b612599996733c2066401f14792cf(value)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullFloat64) GormDataType() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__GormDataType_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__GormDataType_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullBool) IsNull() bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__IsNull_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__IsNull_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullBool) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__String_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullBool) MarshalJSON() ([]byte, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0, r1 := n.gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (n *NullBool) UnmarshalJSON(payload []byte) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", payload)
+	r0 := n.gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullBool) Value() (driver.Value, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Value_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0, r1 := n.gologoo__Value_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (n *NullBool) Scan(value interface {
+}) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Scan_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", value)
+	r0 := n.gologoo__Scan_6a1b612599996733c2066401f14792cf(value)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullBool) GormDataType() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__GormDataType_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__GormDataType_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullTime) IsNull() bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__IsNull_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__IsNull_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullTime) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__String_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullTime) MarshalJSON() ([]byte, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0, r1 := n.gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (n *NullTime) UnmarshalJSON(payload []byte) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", payload)
+	r0 := n.gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullTime) Value() (driver.Value, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Value_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0, r1 := n.gologoo__Value_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (n *NullTime) Scan(value interface {
+}) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Scan_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", value)
+	r0 := n.gologoo__Scan_6a1b612599996733c2066401f14792cf(value)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullTime) GormDataType() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__GormDataType_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__GormDataType_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullDate) IsNull() bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__IsNull_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__IsNull_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullDate) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__String_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullDate) MarshalJSON() ([]byte, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0, r1 := n.gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (n *NullDate) UnmarshalJSON(payload []byte) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", payload)
+	r0 := n.gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullDate) Value() (driver.Value, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Value_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0, r1 := n.gologoo__Value_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (n *NullDate) Scan(value interface {
+}) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Scan_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", value)
+	r0 := n.gologoo__Scan_6a1b612599996733c2066401f14792cf(value)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullDate) GormDataType() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__GormDataType_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__GormDataType_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullNumeric) IsNull() bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__IsNull_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__IsNull_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullNumeric) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__String_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullNumeric) MarshalJSON() ([]byte, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0, r1 := n.gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (n *NullNumeric) UnmarshalJSON(payload []byte) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", payload)
+	r0 := n.gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullNumeric) Value() (driver.Value, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Value_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0, r1 := n.gologoo__Value_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (n *NullNumeric) Scan(value interface {
+}) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Scan_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", value)
+	r0 := n.gologoo__Scan_6a1b612599996733c2066401f14792cf(value)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullNumeric) GormDataType() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__GormDataType_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__GormDataType_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullJSON) IsNull() bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__IsNull_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__IsNull_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullJSON) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__String_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullJSON) MarshalJSON() ([]byte, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0, r1 := n.gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (n *NullJSON) UnmarshalJSON(payload []byte) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", payload)
+	r0 := n.gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n NullJSON) GormDataType() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__GormDataType_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__GormDataType_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n PGNumeric) IsNull() bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__IsNull_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__IsNull_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n PGNumeric) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := n.gologoo__String_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (n PGNumeric) MarshalJSON() ([]byte, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0, r1 := n.gologoo__MarshalJSON_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (n *PGNumeric) UnmarshalJSON(payload []byte) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", payload)
+	r0 := n.gologoo__UnmarshalJSON_6a1b612599996733c2066401f14792cf(payload)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (v GenericColumnValue) Decode(ptr interface {
+}) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Decode_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", ptr)
+	r0 := v.gologoo__Decode_6a1b612599996733c2066401f14792cf(ptr)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func newGenericColumnValue(v interface {
+}) (*GenericColumnValue, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__newGenericColumnValue_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", v)
+	r0, r1 := gologoo__newGenericColumnValue_6a1b612599996733c2066401f14792cf(v)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func errTypeMismatch(srcCode, elCode sppb.TypeCode, dst interface {
+}) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errTypeMismatch_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v %v\n", srcCode, elCode, dst)
+	r0 := gologoo__errTypeMismatch_6a1b612599996733c2066401f14792cf(srcCode, elCode, dst)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errNilSpannerType() error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errNilSpannerType_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := gologoo__errNilSpannerType_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errNilSrc() error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errNilSrc_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := gologoo__errNilSrc_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errNilDst(dst interface {
+}) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errNilDst_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", dst)
+	r0 := gologoo__errNilDst_6a1b612599996733c2066401f14792cf(dst)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errNilArrElemType(t *sppb.Type) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errNilArrElemType_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", t)
+	r0 := gologoo__errNilArrElemType_6a1b612599996733c2066401f14792cf(t)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errUnsupportedEmbeddedStructFields(fname string) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errUnsupportedEmbeddedStructFields_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", fname)
+	r0 := gologoo__errUnsupportedEmbeddedStructFields_6a1b612599996733c2066401f14792cf(fname)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errDstNotForNull(dst interface {
+}) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errDstNotForNull_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", dst)
+	r0 := gologoo__errDstNotForNull_6a1b612599996733c2066401f14792cf(dst)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errBadEncoding(v *proto3.Value, err error) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errBadEncoding_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v\n", v, err)
+	r0 := gologoo__errBadEncoding_6a1b612599996733c2066401f14792cf(v, err)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func parseNullTime(v *proto3.Value, p *NullTime, code sppb.TypeCode, isNull bool) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__parseNullTime_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v %v %v\n", v, p, code, isNull)
+	r0 := gologoo__parseNullTime_6a1b612599996733c2066401f14792cf(v, p, code, isNull)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func decodeValue(v *proto3.Value, t *sppb.Type, ptr interface {
+}) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeValue_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v %v\n", v, t, ptr)
+	r0 := gologoo__decodeValue_6a1b612599996733c2066401f14792cf(v, t, ptr)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (d decodableSpannerType) supportsNull() bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__supportsNull_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := d.gologoo__supportsNull_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func getDecodableSpannerType(ptr interface {
+}, isPtr bool) decodableSpannerType {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__getDecodableSpannerType_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v\n", ptr, isPtr)
+	r0 := gologoo__getDecodableSpannerType_6a1b612599996733c2066401f14792cf(ptr, isPtr)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (dsc decodableSpannerType) decodeValueToCustomType(v *proto3.Value, t *sppb.Type, acode sppb.TypeCode, atypeAnnotation sppb.TypeAnnotationCode, ptr interface {
+}) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeValueToCustomType_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v %v %v %v\n", v, t, acode, atypeAnnotation, ptr)
+	r0 := dsc.gologoo__decodeValueToCustomType_6a1b612599996733c2066401f14792cf(v, t, acode, atypeAnnotation, ptr)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errSrcVal(v *proto3.Value, want string) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errSrcVal_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v\n", v, want)
+	r0 := gologoo__errSrcVal_6a1b612599996733c2066401f14792cf(v, want)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func getStringValue(v *proto3.Value) (string, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__getStringValue_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", v)
+	r0, r1 := gologoo__getStringValue_6a1b612599996733c2066401f14792cf(v)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func getBoolValue(v *proto3.Value) (bool, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__getBoolValue_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", v)
+	r0, r1 := gologoo__getBoolValue_6a1b612599996733c2066401f14792cf(v)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func getListValue(v *proto3.Value) (*proto3.ListValue, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__getListValue_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", v)
+	r0, r1 := gologoo__getListValue_6a1b612599996733c2066401f14792cf(v)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func getGenericValue(t *sppb.Type, v *proto3.Value) (interface {
+}, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__getGenericValue_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v\n", t, v)
+	r0, r1 := gologoo__getGenericValue_6a1b612599996733c2066401f14792cf(t, v)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func getTypedNil(t *sppb.Type) (interface {
+}, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__getTypedNil_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", t)
+	r0, r1 := gologoo__getTypedNil_6a1b612599996733c2066401f14792cf(t)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func errUnexpectedNumericStr(s string) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errUnexpectedNumericStr_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", s)
+	r0 := gologoo__errUnexpectedNumericStr_6a1b612599996733c2066401f14792cf(s)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errUnexpectedFloat64Str(s string) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errUnexpectedFloat64Str_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", s)
+	r0 := gologoo__errUnexpectedFloat64Str_6a1b612599996733c2066401f14792cf(s)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func getFloat64Value(v *proto3.Value) (float64, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__getFloat64Value_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", v)
+	r0, r1 := gologoo__getFloat64Value_6a1b612599996733c2066401f14792cf(v)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func errNilListValue(sqlType string) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errNilListValue_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", sqlType)
+	r0 := gologoo__errNilListValue_6a1b612599996733c2066401f14792cf(sqlType)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errDecodeArrayElement(i int, v proto.Message, sqlType string, err error) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errDecodeArrayElement_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v %v %v\n", i, v, sqlType, err)
+	r0 := gologoo__errDecodeArrayElement_6a1b612599996733c2066401f14792cf(i, v, sqlType, err)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func decodeGenericArray(tp reflect.Type, pb *proto3.ListValue, t *sppb.Type, sqlType string) (interface {
+}, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeGenericArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v %v %v\n", tp, pb, t, sqlType)
+	r0, r1 := gologoo__decodeGenericArray_6a1b612599996733c2066401f14792cf(tp, pb, t, sqlType)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeNullStringArray(pb *proto3.ListValue) ([]NullString, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeNullStringArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeNullStringArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeStringPointerArray(pb *proto3.ListValue) ([]*string, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeStringPointerArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeStringPointerArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeStringArray(pb *proto3.ListValue) ([]string, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeStringArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeStringArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeNullInt64Array(pb *proto3.ListValue) ([]NullInt64, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeNullInt64Array_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeNullInt64Array_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeInt64PointerArray(pb *proto3.ListValue) ([]*int64, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeInt64PointerArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeInt64PointerArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeInt64Array(pb *proto3.ListValue) ([]int64, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeInt64Array_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeInt64Array_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeNullBoolArray(pb *proto3.ListValue) ([]NullBool, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeNullBoolArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeNullBoolArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeBoolPointerArray(pb *proto3.ListValue) ([]*bool, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeBoolPointerArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeBoolPointerArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeBoolArray(pb *proto3.ListValue) ([]bool, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeBoolArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeBoolArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeNullFloat64Array(pb *proto3.ListValue) ([]NullFloat64, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeNullFloat64Array_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeNullFloat64Array_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeFloat64PointerArray(pb *proto3.ListValue) ([]*float64, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeFloat64PointerArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeFloat64PointerArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeFloat64Array(pb *proto3.ListValue) ([]float64, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeFloat64Array_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeFloat64Array_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeNullNumericArray(pb *proto3.ListValue) ([]NullNumeric, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeNullNumericArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeNullNumericArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeNullJSONArray(pb *proto3.ListValue) ([]NullJSON, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeNullJSONArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeNullJSONArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeNullJSONArrayToNullJSON(pb *proto3.ListValue) (*NullJSON, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeNullJSONArrayToNullJSON_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeNullJSONArrayToNullJSON_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeNumericPointerArray(pb *proto3.ListValue) ([]*big.Rat, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeNumericPointerArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeNumericPointerArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeNumericArray(pb *proto3.ListValue) ([]big.Rat, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeNumericArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeNumericArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodePGNumericArray(pb *proto3.ListValue) ([]PGNumeric, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodePGNumericArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodePGNumericArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeByteArray(pb *proto3.ListValue) ([][]byte, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeByteArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeByteArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeNullTimeArray(pb *proto3.ListValue) ([]NullTime, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeNullTimeArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeNullTimeArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeTimePointerArray(pb *proto3.ListValue) ([]*time.Time, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeTimePointerArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeTimePointerArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeTimeArray(pb *proto3.ListValue) ([]time.Time, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeTimeArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeTimeArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeNullDateArray(pb *proto3.ListValue) ([]NullDate, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeNullDateArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeNullDateArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeDatePointerArray(pb *proto3.ListValue) ([]*civil.Date, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeDatePointerArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeDatePointerArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func decodeDateArray(pb *proto3.ListValue) ([]civil.Date, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeDateArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", pb)
+	r0, r1 := gologoo__decodeDateArray_6a1b612599996733c2066401f14792cf(pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func errNotStructElement(i int, v *proto3.Value) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errNotStructElement_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v\n", i, v)
+	r0 := gologoo__errNotStructElement_6a1b612599996733c2066401f14792cf(i, v)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func decodeRowArray(ty *sppb.StructType, pb *proto3.ListValue) ([]NullRow, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeRowArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v\n", ty, pb)
+	r0, r1 := gologoo__decodeRowArray_6a1b612599996733c2066401f14792cf(ty, pb)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func errNilSpannerStructType() error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errNilSpannerStructType_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : (none)\n")
+	r0 := gologoo__errNilSpannerStructType_6a1b612599996733c2066401f14792cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errDupGoField(s interface {
+}, name string) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errDupGoField_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v\n", s, name)
+	r0 := gologoo__errDupGoField_6a1b612599996733c2066401f14792cf(s, name)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errUnnamedField(ty *sppb.StructType, i int) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errUnnamedField_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v\n", ty, i)
+	r0 := gologoo__errUnnamedField_6a1b612599996733c2066401f14792cf(ty, i)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errNoOrDupGoField(s interface {
+}, f string) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errNoOrDupGoField_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v\n", s, f)
+	r0 := gologoo__errNoOrDupGoField_6a1b612599996733c2066401f14792cf(s, f)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errDupSpannerField(f string, ty *sppb.StructType) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errDupSpannerField_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v\n", f, ty)
+	r0 := gologoo__errDupSpannerField_6a1b612599996733c2066401f14792cf(f, ty)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errDecodeStructField(ty *sppb.StructType, f string, err error) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errDecodeStructField_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v %v\n", ty, f, err)
+	r0 := gologoo__errDecodeStructField_6a1b612599996733c2066401f14792cf(ty, f, err)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func decodeStruct(ty *sppb.StructType, pb *proto3.ListValue, ptr interface {
+}, lenient bool) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeStruct_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v %v %v\n", ty, pb, ptr, lenient)
+	r0 := gologoo__decodeStruct_6a1b612599996733c2066401f14792cf(ty, pb, ptr, lenient)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func isPtrStructPtrSlice(t reflect.Type) bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isPtrStructPtrSlice_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", t)
+	r0 := gologoo__isPtrStructPtrSlice_6a1b612599996733c2066401f14792cf(t)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func decodeStructArray(ty *sppb.StructType, pb *proto3.ListValue, ptr interface {
+}) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__decodeStructArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v %v\n", ty, pb, ptr)
+	r0 := gologoo__decodeStructArray_6a1b612599996733c2066401f14792cf(ty, pb, ptr)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func getAllFieldNames(v reflect.Value) []string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__getAllFieldNames_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", v)
+	r0 := gologoo__getAllFieldNames_6a1b612599996733c2066401f14792cf(v)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errEncoderUnsupportedType(v interface {
+}) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errEncoderUnsupportedType_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", v)
+	r0 := gologoo__errEncoderUnsupportedType_6a1b612599996733c2066401f14792cf(v)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func encodeValue(v interface {
+}) (*proto3.Value, *sppb.Type, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__encodeValue_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", v)
+	r0, r1, r2 := gologoo__encodeValue_6a1b612599996733c2066401f14792cf(v)
+	log.Printf("Output: %v %v %v\n", r0, r1, r2)
+	return r0, r1, r2
+}
+func convertCustomTypeValue(sourceType decodableSpannerType, v interface {
+}) (interface {
+}, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__convertCustomTypeValue_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v\n", sourceType, v)
+	r0, r1 := gologoo__convertCustomTypeValue_6a1b612599996733c2066401f14792cf(sourceType, v)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func encodeStruct(v interface {
+}) (*proto3.Value, *sppb.Type, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__encodeStruct_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", v)
+	r0, r1, r2 := gologoo__encodeStruct_6a1b612599996733c2066401f14792cf(v)
+	log.Printf("Output: %v %v %v\n", r0, r1, r2)
+	return r0, r1, r2
+}
+func encodeStructArray(v interface {
+}) (*proto3.Value, *sppb.Type, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__encodeStructArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", v)
+	r0, r1, r2 := gologoo__encodeStructArray_6a1b612599996733c2066401f14792cf(v)
+	log.Printf("Output: %v %v %v\n", r0, r1, r2)
+	return r0, r1, r2
+}
+func isStructOrArrayOfStructValue(v interface {
+}) bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isStructOrArrayOfStructValue_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", v)
+	r0 := gologoo__isStructOrArrayOfStructValue_6a1b612599996733c2066401f14792cf(v)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func isSupportedMutationType(v interface {
+}) bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isSupportedMutationType_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", v)
+	r0 := gologoo__isSupportedMutationType_6a1b612599996733c2066401f14792cf(v)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func encodeValueArray(vs []interface {
+}) (*proto3.ListValue, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__encodeValueArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", vs)
+	r0, r1 := gologoo__encodeValueArray_6a1b612599996733c2066401f14792cf(vs)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func encodeArray(len int, at func(int) interface {
+}) (*proto3.Value, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__encodeArray_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v %v\n", len, at)
+	r0, r1 := gologoo__encodeArray_6a1b612599996733c2066401f14792cf(len, at)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func spannerTagParser(t reflect.StructTag) (name string, keep bool, other interface {
+}, err error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__spannerTagParser_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", t)
+	name, keep, other, err = gologoo__spannerTagParser_6a1b612599996733c2066401f14792cf(t)
+	log.Printf("Output: %v %v %v %v\n", name, keep, other, err)
+	return
+}
+func trimDoubleQuotes(payload []byte) ([]byte, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__trimDoubleQuotes_6a1b612599996733c2066401f14792cf")
+	log.Printf("Input : %v\n", payload)
+	r0, r1 := gologoo__trimDoubleQuotes_6a1b612599996733c2066401f14792cf(payload)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
 }

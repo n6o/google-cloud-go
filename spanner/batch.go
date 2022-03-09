@@ -1,19 +1,3 @@
-/*
-Copyright 2018 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package spanner
 
 import (
@@ -31,92 +15,38 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// BatchReadOnlyTransaction is a ReadOnlyTransaction that allows for exporting
-// arbitrarily large amounts of data from Cloud Spanner databases.
-// BatchReadOnlyTransaction partitions a read/query request. Read/query request
-// can then be executed independently over each partition while observing the
-// same snapshot of the database. BatchReadOnlyTransaction can also be shared
-// across multiple clients by passing around the BatchReadOnlyTransactionID and
-// then recreating the transaction using Client.BatchReadOnlyTransactionFromID.
-//
-// Note: if a client is used only to run partitions, you can
-// create it using a ClientConfig with both MinOpened and MaxIdle set to
-// zero to avoid creating unnecessary sessions. You can also avoid excess
-// gRPC channels by setting ClientConfig.NumChannels to the number of
-// concurrently active BatchReadOnlyTransactions you expect to have.
 type BatchReadOnlyTransaction struct {
 	ReadOnlyTransaction
 	ID BatchReadOnlyTransactionID
 }
-
-// BatchReadOnlyTransactionID is a unique identifier for a
-// BatchReadOnlyTransaction. It can be used to re-create a
-// BatchReadOnlyTransaction on a different machine or process by calling
-// Client.BatchReadOnlyTransactionFromID.
 type BatchReadOnlyTransactionID struct {
-	// unique ID for the transaction.
 	tid transactionID
-	// sid is the id of the Cloud Spanner session used for this transaction.
 	sid string
-	// rts is the read timestamp of this transaction.
 	rts time.Time
 }
-
-// Partition defines a segment of data to be read in a batch read or query. A
-// partition can be serialized and processed across several different machines
-// or processes.
 type Partition struct {
 	pt   []byte
 	qreq *sppb.ExecuteSqlRequest
 	rreq *sppb.ReadRequest
 }
-
-// PartitionOptions specifies options for a PartitionQueryRequest and
-// PartitionReadRequest. See
-// https://godoc.org/google.golang.org/genproto/googleapis/spanner/v1#PartitionOptions
-// for more details.
 type PartitionOptions struct {
-	// The desired data size for each partition generated.
 	PartitionBytes int64
-	// The desired maximum number of partitions to return.
-	MaxPartitions int64
+	MaxPartitions  int64
 }
 
-// toProto converts a spanner.PartitionOptions into a sppb.PartitionOptions
-func (opt PartitionOptions) toProto() *sppb.PartitionOptions {
-	return &sppb.PartitionOptions{
-		PartitionSizeBytes: opt.PartitionBytes,
-		MaxPartitions:      opt.MaxPartitions,
-	}
+func (opt PartitionOptions) gologoo__toProto_103284c03bd25c2e68afa447f399070e() *sppb.PartitionOptions {
+	return &sppb.PartitionOptions{PartitionSizeBytes: opt.PartitionBytes, MaxPartitions: opt.MaxPartitions}
 }
-
-// PartitionRead returns a list of Partitions that can be used to read rows from
-// the database. These partitions can be executed across multiple processes,
-// even across different machines. The partition size and count hints can be
-// configured using PartitionOptions.
-func (t *BatchReadOnlyTransaction) PartitionRead(ctx context.Context, table string, keys KeySet, columns []string, opt PartitionOptions) ([]*Partition, error) {
+func (t *BatchReadOnlyTransaction) gologoo__PartitionRead_103284c03bd25c2e68afa447f399070e(ctx context.Context, table string, keys KeySet, columns []string, opt PartitionOptions) ([]*Partition, error) {
 	return t.PartitionReadUsingIndex(ctx, table, "", keys, columns, opt)
 }
-
-// PartitionReadWithOptions returns a list of Partitions that can be used to
-// read rows from the database. These partitions can be executed across multiple
-// processes, even across different machines. The partition size and count hints
-// can be configured using PartitionOptions. Pass a ReadOptions to modify the
-// read operation.
-func (t *BatchReadOnlyTransaction) PartitionReadWithOptions(ctx context.Context, table string, keys KeySet, columns []string, opt PartitionOptions, readOptions ReadOptions) ([]*Partition, error) {
+func (t *BatchReadOnlyTransaction) gologoo__PartitionReadWithOptions_103284c03bd25c2e68afa447f399070e(ctx context.Context, table string, keys KeySet, columns []string, opt PartitionOptions, readOptions ReadOptions) ([]*Partition, error) {
 	return t.PartitionReadUsingIndexWithOptions(ctx, table, "", keys, columns, opt, readOptions)
 }
-
-// PartitionReadUsingIndex returns a list of Partitions that can be used to read
-// rows from the database using an index.
-func (t *BatchReadOnlyTransaction) PartitionReadUsingIndex(ctx context.Context, table, index string, keys KeySet, columns []string, opt PartitionOptions) ([]*Partition, error) {
+func (t *BatchReadOnlyTransaction) gologoo__PartitionReadUsingIndex_103284c03bd25c2e68afa447f399070e(ctx context.Context, table, index string, keys KeySet, columns []string, opt PartitionOptions) ([]*Partition, error) {
 	return t.PartitionReadUsingIndexWithOptions(ctx, table, index, keys, columns, opt, ReadOptions{})
 }
-
-// PartitionReadUsingIndexWithOptions returns a list of Partitions that can be
-// used to read rows from the database using an index. Pass a ReadOptions to
-// modify the read operation.
-func (t *BatchReadOnlyTransaction) PartitionReadUsingIndexWithOptions(ctx context.Context, table, index string, keys KeySet, columns []string, opt PartitionOptions, readOptions ReadOptions) ([]*Partition, error) {
+func (t *BatchReadOnlyTransaction) gologoo__PartitionReadUsingIndexWithOptions_103284c03bd25c2e68afa447f399070e(ctx context.Context, table, index string, keys KeySet, columns []string, opt PartitionOptions, readOptions ReadOptions) ([]*Partition, error) {
 	sh, ts, err := t.acquire(ctx)
 	if err != nil {
 		return nil, err
@@ -128,60 +58,29 @@ func (t *BatchReadOnlyTransaction) PartitionReadUsingIndexWithOptions(ctx contex
 		partitions []*Partition
 	)
 	kset, err = keys.keySetProto()
-	// Request partitions.
 	if err != nil {
 		return nil, err
 	}
 	var md metadata.MD
-	resp, err = client.PartitionRead(contextWithOutgoingMetadata(ctx, sh.getMetadata()), &sppb.PartitionReadRequest{
-		Session:          sid,
-		Transaction:      ts,
-		Table:            table,
-		Index:            index,
-		Columns:          columns,
-		KeySet:           kset,
-		PartitionOptions: opt.toProto(),
-	}, gax.WithGRPCOptions(grpc.Header(&md)))
-
+	resp, err = client.PartitionRead(contextWithOutgoingMetadata(ctx, sh.getMetadata()), &sppb.PartitionReadRequest{Session: sid, Transaction: ts, Table: table, Index: index, Columns: columns, KeySet: kset, PartitionOptions: opt.toProto()}, gax.WithGRPCOptions(grpc.Header(&md)))
 	if getGFELatencyMetricsFlag() && md != nil && t.ct != nil {
 		if err := createContextAndCaptureGFELatencyMetrics(ctx, t.ct, md, "PartitionReadUsingIndexWithOptions"); err != nil {
 			trace.TracePrintf(ctx, nil, "Error in recording GFE Latency. Try disabling and rerunning. Error: %v", err)
 		}
 	}
-	// Prepare ReadRequest.
-	req := &sppb.ReadRequest{
-		Session:        sid,
-		Transaction:    ts,
-		Table:          table,
-		Index:          index,
-		Columns:        columns,
-		KeySet:         kset,
-		RequestOptions: createRequestOptions(readOptions.Priority, readOptions.RequestTag, ""),
-	}
-	// Generate partitions.
+	req := &sppb.ReadRequest{Session: sid, Transaction: ts, Table: table, Index: index, Columns: columns, KeySet: kset, RequestOptions: createRequestOptions(readOptions.Priority, readOptions.RequestTag, "")}
 	for _, p := range resp.GetPartitions() {
-		partitions = append(partitions, &Partition{
-			pt:   p.PartitionToken,
-			rreq: req,
-		})
+		partitions = append(partitions, &Partition{pt: p.PartitionToken, rreq: req})
 	}
 	return partitions, err
 }
-
-// PartitionQuery returns a list of Partitions that can be used to execute a
-// query against the database.
-func (t *BatchReadOnlyTransaction) PartitionQuery(ctx context.Context, statement Statement, opt PartitionOptions) ([]*Partition, error) {
+func (t *BatchReadOnlyTransaction) gologoo__PartitionQuery_103284c03bd25c2e68afa447f399070e(ctx context.Context, statement Statement, opt PartitionOptions) ([]*Partition, error) {
 	return t.partitionQuery(ctx, statement, opt, t.ReadOnlyTransaction.txReadOnly.qo)
 }
-
-// PartitionQueryWithOptions returns a list of Partitions that can be used to
-// execute a query against the database. The sql query execution will be
-// optimized based on the given query options.
-func (t *BatchReadOnlyTransaction) PartitionQueryWithOptions(ctx context.Context, statement Statement, opt PartitionOptions, qOpts QueryOptions) ([]*Partition, error) {
+func (t *BatchReadOnlyTransaction) gologoo__PartitionQueryWithOptions_103284c03bd25c2e68afa447f399070e(ctx context.Context, statement Statement, opt PartitionOptions, qOpts QueryOptions) ([]*Partition, error) {
 	return t.partitionQuery(ctx, statement, opt, t.ReadOnlyTransaction.txReadOnly.qo.merge(qOpts))
 }
-
-func (t *BatchReadOnlyTransaction) partitionQuery(ctx context.Context, statement Statement, opt PartitionOptions, qOpts QueryOptions) ([]*Partition, error) {
+func (t *BatchReadOnlyTransaction) gologoo__partitionQuery_103284c03bd25c2e68afa447f399070e(ctx context.Context, statement Statement, opt PartitionOptions, qOpts QueryOptions) ([]*Partition, error) {
 	sh, ts, err := t.acquire(ctx)
 	if err != nil {
 		return nil, err
@@ -192,74 +91,30 @@ func (t *BatchReadOnlyTransaction) partitionQuery(ctx context.Context, statement
 		return nil, err
 	}
 	var md metadata.MD
-
-	// request Partitions
-	req := &sppb.PartitionQueryRequest{
-		Session:          sid,
-		Transaction:      ts,
-		Sql:              statement.SQL,
-		PartitionOptions: opt.toProto(),
-		Params:           params,
-		ParamTypes:       paramTypes,
-	}
+	req := &sppb.PartitionQueryRequest{Session: sid, Transaction: ts, Sql: statement.SQL, PartitionOptions: opt.toProto(), Params: params, ParamTypes: paramTypes}
 	resp, err := client.PartitionQuery(contextWithOutgoingMetadata(ctx, sh.getMetadata()), req, gax.WithGRPCOptions(grpc.Header(&md)))
-
 	if getGFELatencyMetricsFlag() && md != nil && t.ct != nil {
 		if err := createContextAndCaptureGFELatencyMetrics(ctx, t.ct, md, "partitionQuery"); err != nil {
 			trace.TracePrintf(ctx, nil, "Error in recording GFE Latency. Try disabling and rerunning. Error: %v", err)
 		}
 	}
-
-	// prepare ExecuteSqlRequest
-	r := &sppb.ExecuteSqlRequest{
-		Session:        sid,
-		Transaction:    ts,
-		Sql:            statement.SQL,
-		Params:         params,
-		ParamTypes:     paramTypes,
-		QueryOptions:   qOpts.Options,
-		RequestOptions: createRequestOptions(qOpts.Priority, qOpts.RequestTag, ""),
-	}
-
-	// generate Partitions
+	r := &sppb.ExecuteSqlRequest{Session: sid, Transaction: ts, Sql: statement.SQL, Params: params, ParamTypes: paramTypes, QueryOptions: qOpts.Options, RequestOptions: createRequestOptions(qOpts.Priority, qOpts.RequestTag, "")}
 	var partitions []*Partition
 	for _, p := range resp.GetPartitions() {
-		partitions = append(partitions, &Partition{
-			pt:   p.PartitionToken,
-			qreq: r,
-		})
+		partitions = append(partitions, &Partition{pt: p.PartitionToken, qreq: r})
 	}
 	return partitions, err
 }
-
-// release implements txReadEnv.release, noop.
-func (t *BatchReadOnlyTransaction) release(err error) {
+func (t *BatchReadOnlyTransaction) gologoo__release_103284c03bd25c2e68afa447f399070e(err error) {
 }
-
-// setTimestamp implements txReadEnv.setTimestamp, noop.
-//
-// read timestamp is ready on txn initialization, avoid contending writing to it
-// with future partitions.
-func (t *BatchReadOnlyTransaction) setTimestamp(ts time.Time) {
+func (t *BatchReadOnlyTransaction) gologoo__setTimestamp_103284c03bd25c2e68afa447f399070e(ts time.Time) {
 }
-
-// Close marks the txn as closed.
-func (t *BatchReadOnlyTransaction) Close() {
+func (t *BatchReadOnlyTransaction) gologoo__Close_103284c03bd25c2e68afa447f399070e() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.state = txClosed
 }
-
-// Cleanup cleans up all the resources used by this transaction and makes
-// it unusable. Once this method is invoked, the transaction is no longer
-// usable anywhere, including other clients/processes with which this
-// transaction was shared.
-//
-// Calling Cleanup is optional, but recommended. If Cleanup is not called, the
-// transaction's resources will be freed when the session expires on the backend
-// and is deleted. For more information about recycled sessions, see
-// https://cloud.google.com/spanner/docs/sessions.
-func (t *BatchReadOnlyTransaction) Cleanup(ctx context.Context) {
+func (t *BatchReadOnlyTransaction) gologoo__Cleanup_103284c03bd25c2e68afa447f399070e(ctx context.Context) {
 	t.Close()
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -269,16 +124,13 @@ func (t *BatchReadOnlyTransaction) Cleanup(ctx context.Context) {
 	}
 	t.sh = nil
 	sid, client := sh.getID(), sh.getClient()
-
 	var md metadata.MD
 	err := client.DeleteSession(contextWithOutgoingMetadata(ctx, sh.getMetadata()), &sppb.DeleteSessionRequest{Name: sid}, gax.WithGRPCOptions(grpc.Header(&md)))
-
 	if getGFELatencyMetricsFlag() && md != nil && t.ct != nil {
 		if err := createContextAndCaptureGFELatencyMetrics(ctx, t.ct, md, "Cleanup"); err != nil {
 			trace.TracePrintf(ctx, nil, "Error in recording GFE Latency. Try disabling and rerunning. Error: %v", err)
 		}
 	}
-
 	if err != nil {
 		var logger *log.Logger
 		if sh.session != nil {
@@ -287,10 +139,7 @@ func (t *BatchReadOnlyTransaction) Cleanup(ctx context.Context) {
 		logf(logger, "Failed to delete session %v. Error: %v", sid, err)
 	}
 }
-
-// Execute runs a single Partition obtained from PartitionRead or
-// PartitionQuery.
-func (t *BatchReadOnlyTransaction) Execute(ctx context.Context, p *Partition) *RowIterator {
+func (t *BatchReadOnlyTransaction) gologoo__Execute_103284c03bd25c2e68afa447f399070e(ctx context.Context, p *Partition) *RowIterator {
 	var (
 		sh  *sessionHandle
 		err error
@@ -301,23 +150,11 @@ func (t *BatchReadOnlyTransaction) Execute(ctx context.Context, p *Partition) *R
 	}
 	client := sh.getClient()
 	if client == nil {
-		// Might happen if transaction is closed in the middle of a API call.
 		return &RowIterator{err: errSessionClosed(sh)}
 	}
-	// Read or query partition.
 	if p.rreq != nil {
 		rpc = func(ctx context.Context, resumeToken []byte) (streamingReceiver, error) {
-			client, err := client.StreamingRead(ctx, &sppb.ReadRequest{
-				Session:        p.rreq.Session,
-				Transaction:    p.rreq.Transaction,
-				Table:          p.rreq.Table,
-				Index:          p.rreq.Index,
-				Columns:        p.rreq.Columns,
-				KeySet:         p.rreq.KeySet,
-				PartitionToken: p.pt,
-				RequestOptions: p.rreq.RequestOptions,
-				ResumeToken:    resumeToken,
-			})
+			client, err := client.StreamingRead(ctx, &sppb.ReadRequest{Session: p.rreq.Session, Transaction: p.rreq.Transaction, Table: p.rreq.Table, Index: p.rreq.Index, Columns: p.rreq.Columns, KeySet: p.rreq.KeySet, PartitionToken: p.pt, RequestOptions: p.rreq.RequestOptions, ResumeToken: resumeToken})
 			if err != nil {
 				return client, err
 			}
@@ -331,22 +168,11 @@ func (t *BatchReadOnlyTransaction) Execute(ctx context.Context, p *Partition) *R
 		}
 	} else {
 		rpc = func(ctx context.Context, resumeToken []byte) (streamingReceiver, error) {
-			client, err := client.ExecuteStreamingSql(ctx, &sppb.ExecuteSqlRequest{
-				Session:        p.qreq.Session,
-				Transaction:    p.qreq.Transaction,
-				Sql:            p.qreq.Sql,
-				Params:         p.qreq.Params,
-				ParamTypes:     p.qreq.ParamTypes,
-				QueryOptions:   p.qreq.QueryOptions,
-				PartitionToken: p.pt,
-				RequestOptions: p.qreq.RequestOptions,
-				ResumeToken:    resumeToken,
-			})
+			client, err := client.ExecuteStreamingSql(ctx, &sppb.ExecuteSqlRequest{Session: p.qreq.Session, Transaction: p.qreq.Transaction, Sql: p.qreq.Sql, Params: p.qreq.Params, ParamTypes: p.qreq.ParamTypes, QueryOptions: p.qreq.QueryOptions, PartitionToken: p.pt, RequestOptions: p.qreq.RequestOptions, ResumeToken: resumeToken})
 			if err != nil {
 				return client, err
 			}
 			md, err := client.Header()
-
 			if getGFELatencyMetricsFlag() && md != nil && t.ct != nil {
 				if err := createContextAndCaptureGFELatencyMetrics(ctx, t.ct, md, "Execute"); err != nil {
 					trace.TracePrintf(ctx, nil, "Error in recording GFE Latency. Try disabling and rerunning. Error: %v", err)
@@ -355,16 +181,9 @@ func (t *BatchReadOnlyTransaction) Execute(ctx context.Context, p *Partition) *R
 			return client, err
 		}
 	}
-	return stream(
-		contextWithOutgoingMetadata(ctx, sh.getMetadata()),
-		sh.session.logger,
-		rpc,
-		t.setTimestamp,
-		t.release)
+	return stream(contextWithOutgoingMetadata(ctx, sh.getMetadata()), sh.session.logger, rpc, t.setTimestamp, t.release)
 }
-
-// MarshalBinary implements BinaryMarshaler.
-func (tid BatchReadOnlyTransactionID) MarshalBinary() (data []byte, err error) {
+func (tid BatchReadOnlyTransactionID) gologoo__MarshalBinary_103284c03bd25c2e68afa447f399070e() (data []byte, err error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	if err := enc.Encode(tid.tid); err != nil {
@@ -378,9 +197,7 @@ func (tid BatchReadOnlyTransactionID) MarshalBinary() (data []byte, err error) {
 	}
 	return buf.Bytes(), nil
 }
-
-// UnmarshalBinary implements BinaryUnmarshaler.
-func (tid *BatchReadOnlyTransactionID) UnmarshalBinary(data []byte) error {
+func (tid *BatchReadOnlyTransactionID) gologoo__UnmarshalBinary_103284c03bd25c2e68afa447f399070e(data []byte) error {
 	dec := gob.NewDecoder(bytes.NewReader(data))
 	if err := dec.Decode(&tid.tid); err != nil {
 		return err
@@ -390,9 +207,7 @@ func (tid *BatchReadOnlyTransactionID) UnmarshalBinary(data []byte) error {
 	}
 	return dec.Decode(&tid.rts)
 }
-
-// MarshalBinary implements BinaryMarshaler.
-func (p Partition) MarshalBinary() (data []byte, err error) {
+func (p Partition) gologoo__MarshalBinary_103284c03bd25c2e68afa447f399070e() (data []byte, err error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	if err := enc.Encode(p.pt); err != nil {
@@ -418,9 +233,7 @@ func (p Partition) MarshalBinary() (data []byte, err error) {
 	}
 	return buf.Bytes(), nil
 }
-
-// UnmarshalBinary implements BinaryUnmarshaler.
-func (p *Partition) UnmarshalBinary(data []byte) error {
+func (p *Partition) gologoo__UnmarshalBinary_103284c03bd25c2e68afa447f399070e(data []byte) error {
 	var (
 		isReadPartition bool
 		d               []byte
@@ -444,4 +257,140 @@ func (p *Partition) UnmarshalBinary(data []byte) error {
 		err = proto.Unmarshal(d, p.qreq)
 	}
 	return err
+}
+func (opt PartitionOptions) toProto() *sppb.PartitionOptions {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__toProto_103284c03bd25c2e68afa447f399070e")
+	log.Printf("Input : (none)\n")
+	r0 := opt.gologoo__toProto_103284c03bd25c2e68afa447f399070e()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (t *BatchReadOnlyTransaction) PartitionRead(ctx context.Context, table string, keys KeySet, columns []string, opt PartitionOptions) ([]*Partition, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__PartitionRead_103284c03bd25c2e68afa447f399070e")
+	log.Printf("Input : %v %v %v %v %v\n", ctx, table, keys, columns, opt)
+	r0, r1 := t.gologoo__PartitionRead_103284c03bd25c2e68afa447f399070e(ctx, table, keys, columns, opt)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (t *BatchReadOnlyTransaction) PartitionReadWithOptions(ctx context.Context, table string, keys KeySet, columns []string, opt PartitionOptions, readOptions ReadOptions) ([]*Partition, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__PartitionReadWithOptions_103284c03bd25c2e68afa447f399070e")
+	log.Printf("Input : %v %v %v %v %v %v\n", ctx, table, keys, columns, opt, readOptions)
+	r0, r1 := t.gologoo__PartitionReadWithOptions_103284c03bd25c2e68afa447f399070e(ctx, table, keys, columns, opt, readOptions)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (t *BatchReadOnlyTransaction) PartitionReadUsingIndex(ctx context.Context, table, index string, keys KeySet, columns []string, opt PartitionOptions) ([]*Partition, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__PartitionReadUsingIndex_103284c03bd25c2e68afa447f399070e")
+	log.Printf("Input : %v %v %v %v %v %v\n", ctx, table, index, keys, columns, opt)
+	r0, r1 := t.gologoo__PartitionReadUsingIndex_103284c03bd25c2e68afa447f399070e(ctx, table, index, keys, columns, opt)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (t *BatchReadOnlyTransaction) PartitionReadUsingIndexWithOptions(ctx context.Context, table, index string, keys KeySet, columns []string, opt PartitionOptions, readOptions ReadOptions) ([]*Partition, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__PartitionReadUsingIndexWithOptions_103284c03bd25c2e68afa447f399070e")
+	log.Printf("Input : %v %v %v %v %v %v %v\n", ctx, table, index, keys, columns, opt, readOptions)
+	r0, r1 := t.gologoo__PartitionReadUsingIndexWithOptions_103284c03bd25c2e68afa447f399070e(ctx, table, index, keys, columns, opt, readOptions)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (t *BatchReadOnlyTransaction) PartitionQuery(ctx context.Context, statement Statement, opt PartitionOptions) ([]*Partition, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__PartitionQuery_103284c03bd25c2e68afa447f399070e")
+	log.Printf("Input : %v %v %v\n", ctx, statement, opt)
+	r0, r1 := t.gologoo__PartitionQuery_103284c03bd25c2e68afa447f399070e(ctx, statement, opt)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (t *BatchReadOnlyTransaction) PartitionQueryWithOptions(ctx context.Context, statement Statement, opt PartitionOptions, qOpts QueryOptions) ([]*Partition, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__PartitionQueryWithOptions_103284c03bd25c2e68afa447f399070e")
+	log.Printf("Input : %v %v %v %v\n", ctx, statement, opt, qOpts)
+	r0, r1 := t.gologoo__PartitionQueryWithOptions_103284c03bd25c2e68afa447f399070e(ctx, statement, opt, qOpts)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (t *BatchReadOnlyTransaction) partitionQuery(ctx context.Context, statement Statement, opt PartitionOptions, qOpts QueryOptions) ([]*Partition, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__partitionQuery_103284c03bd25c2e68afa447f399070e")
+	log.Printf("Input : %v %v %v %v\n", ctx, statement, opt, qOpts)
+	r0, r1 := t.gologoo__partitionQuery_103284c03bd25c2e68afa447f399070e(ctx, statement, opt, qOpts)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (t *BatchReadOnlyTransaction) release(err error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__release_103284c03bd25c2e68afa447f399070e")
+	log.Printf("Input : %v\n", err)
+	t.gologoo__release_103284c03bd25c2e68afa447f399070e(err)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (t *BatchReadOnlyTransaction) setTimestamp(ts time.Time) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__setTimestamp_103284c03bd25c2e68afa447f399070e")
+	log.Printf("Input : %v\n", ts)
+	t.gologoo__setTimestamp_103284c03bd25c2e68afa447f399070e(ts)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (t *BatchReadOnlyTransaction) Close() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Close_103284c03bd25c2e68afa447f399070e")
+	log.Printf("Input : (none)\n")
+	t.gologoo__Close_103284c03bd25c2e68afa447f399070e()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (t *BatchReadOnlyTransaction) Cleanup(ctx context.Context) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Cleanup_103284c03bd25c2e68afa447f399070e")
+	log.Printf("Input : %v\n", ctx)
+	t.gologoo__Cleanup_103284c03bd25c2e68afa447f399070e(ctx)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (t *BatchReadOnlyTransaction) Execute(ctx context.Context, p *Partition) *RowIterator {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Execute_103284c03bd25c2e68afa447f399070e")
+	log.Printf("Input : %v %v\n", ctx, p)
+	r0 := t.gologoo__Execute_103284c03bd25c2e68afa447f399070e(ctx, p)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (tid BatchReadOnlyTransactionID) MarshalBinary() (data []byte, err error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__MarshalBinary_103284c03bd25c2e68afa447f399070e")
+	log.Printf("Input : (none)\n")
+	data, err = tid.gologoo__MarshalBinary_103284c03bd25c2e68afa447f399070e()
+	log.Printf("Output: %v %v\n", data, err)
+	return
+}
+func (tid *BatchReadOnlyTransactionID) UnmarshalBinary(data []byte) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__UnmarshalBinary_103284c03bd25c2e68afa447f399070e")
+	log.Printf("Input : %v\n", data)
+	r0 := tid.gologoo__UnmarshalBinary_103284c03bd25c2e68afa447f399070e(data)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (p Partition) MarshalBinary() (data []byte, err error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__MarshalBinary_103284c03bd25c2e68afa447f399070e")
+	log.Printf("Input : (none)\n")
+	data, err = p.gologoo__MarshalBinary_103284c03bd25c2e68afa447f399070e()
+	log.Printf("Output: %v %v\n", data, err)
+	return
+}
+func (p *Partition) UnmarshalBinary(data []byte) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__UnmarshalBinary_103284c03bd25c2e68afa447f399070e")
+	log.Printf("Input : %v\n", data)
+	r0 := p.gologoo__UnmarshalBinary_103284c03bd25c2e68afa447f399070e(data)
+	log.Printf("Output: %v\n", r0)
+	return r0
 }

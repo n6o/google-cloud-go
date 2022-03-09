@@ -1,55 +1,37 @@
-// Copyright 2018 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     https://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package instance
 
-// InstanceAdminProjectPath returns the path for the project resource.
-//
-// Deprecated: Use
-//   fmt.Sprintf("projects/%s", project)
-// instead.
+import "log"
+
+func gologoo__InstanceAdminProjectPath_4620876520013748dcd9b45e831880fd(project string) string {
+	return "" + "projects/" + project + ""
+}
+func gologoo__InstanceAdminInstanceConfigPath_4620876520013748dcd9b45e831880fd(project, instanceConfig string) string {
+	return "" + "projects/" + project + "/instanceConfigs/" + instanceConfig + ""
+}
+func gologoo__InstanceAdminInstancePath_4620876520013748dcd9b45e831880fd(project, instance string) string {
+	return "" + "projects/" + project + "/instances/" + instance + ""
+}
 func InstanceAdminProjectPath(project string) string {
-	return "" +
-		"projects/" +
-		project +
-		""
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__InstanceAdminProjectPath_4620876520013748dcd9b45e831880fd")
+	log.Printf("Input : %v\n", project)
+	r0 := gologoo__InstanceAdminProjectPath_4620876520013748dcd9b45e831880fd(project)
+	log.Printf("Output: %v\n", r0)
+	return r0
 }
-
-// InstanceAdminInstanceConfigPath returns the path for the instance config resource.
-//
-// Deprecated: Use
-//   fmt.Sprintf("projects/%s/instanceConfigs/%s", project, instanceConfig)
-// instead.
 func InstanceAdminInstanceConfigPath(project, instanceConfig string) string {
-	return "" +
-		"projects/" +
-		project +
-		"/instanceConfigs/" +
-		instanceConfig +
-		""
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__InstanceAdminInstanceConfigPath_4620876520013748dcd9b45e831880fd")
+	log.Printf("Input : %v %v\n", project, instanceConfig)
+	r0 := gologoo__InstanceAdminInstanceConfigPath_4620876520013748dcd9b45e831880fd(project, instanceConfig)
+	log.Printf("Output: %v\n", r0)
+	return r0
 }
-
-// InstanceAdminInstancePath returns the path for the instance resource.
-//
-// Deprecated: Use
-//   fmt.Sprintf("projects/%s/instances/%s", project, instance)
-// instead.
 func InstanceAdminInstancePath(project, instance string) string {
-	return "" +
-		"projects/" +
-		project +
-		"/instances/" +
-		instance +
-		""
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__InstanceAdminInstancePath_4620876520013748dcd9b45e831880fd")
+	log.Printf("Input : %v %v\n", project, instance)
+	r0 := gologoo__InstanceAdminInstancePath_4620876520013748dcd9b45e831880fd(project, instance)
+	log.Printf("Output: %v\n", r0)
+	return r0
 }

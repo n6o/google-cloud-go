@@ -1,48 +1,3 @@
-/*
-Copyright 2019 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
-/*
-Package spannertest contains test helpers for working with Cloud Spanner.
-
-This package is EXPERIMENTAL, and is lacking several features. See the README.md
-file in this directory for more details.
-
-In-memory fake
-
-This package has an in-memory fake implementation of spanner. To use it,
-create a Server, and then connect to it with no security:
-	srv, err := spannertest.NewServer("localhost:0")
-	...
-	conn, err := grpc.DialContext(ctx, srv.Addr, grpc.WithInsecure())
-	...
-	client, err := spanner.NewClient(ctx, db, option.WithGRPCConn(conn))
-	...
-
-Alternatively, create a Server, then set the SPANNER_EMULATOR_HOST environment
-variable and use the regular spanner.NewClient:
-	srv, err := spannertest.NewServer("localhost:0")
-	...
-	os.Setenv("SPANNER_EMULATOR_HOST", srv.Addr)
-	client, err := spanner.NewClient(ctx, db)
-	...
-
-The same server also supports database admin operations for use with
-the cloud.google.com/go/spanner/admin/database/apiv1 package. This only
-simulates the existence of a single database; its name is ignored.
-*/
 package spannertest
 
 import (
@@ -58,12 +13,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"cloud.google.com/go/civil"
+	"cloud.google.com/go/spanner/spansql"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	anypb "github.com/golang/protobuf/ptypes/any"
 	emptypb "github.com/golang/protobuf/ptypes/empty"
 	structpb "github.com/golang/protobuf/ptypes/struct"
@@ -71,69 +24,45 @@ import (
 	lropb "google.golang.org/genproto/googleapis/longrunning"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	spannerpb "google.golang.org/genproto/googleapis/spanner/v1"
-
-	"cloud.google.com/go/civil"
-	"cloud.google.com/go/spanner/spansql"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-// Server is an in-memory Cloud Spanner fake.
-// It is unauthenticated, non-performant, and only a rough approximation.
 type Server struct {
 	Addr string
-
-	l   net.Listener
-	srv *grpc.Server
-	s   *server
+	l    net.Listener
+	srv  *grpc.Server
+	s    *server
 }
-
-// server is the real implementation of the fake.
-// It is a separate and unexported type so the API won't be cluttered with
-// methods that are only relevant to the fake's implementation.
 type server struct {
-	logf Logger
-
-	db    database
-	start time.Time
-
+	logf     Logger
+	db       database
+	start    time.Time
 	mu       sync.Mutex
 	sessions map[string]*session
 	lros     map[string]*lro
-
-	// Any unimplemented methods will cause a panic.
-	// TODO: Switch to Unimplemented at some point? spannerpb would need regenerating.
 	adminpb.DatabaseAdminServer
 	spannerpb.SpannerServer
 	lropb.OperationsServer
 }
-
 type session struct {
-	name     string
-	creation time.Time
-
-	// This context tracks the lifetime of this session.
-	// It is canceled in DeleteSession.
-	ctx    context.Context
-	cancel func()
-
+	name         string
+	creation     time.Time
+	ctx          context.Context
+	cancel       func()
 	mu           sync.Mutex
 	lastUse      time.Time
 	transactions map[string]*transaction
 }
 
-func (s *session) Proto() *spannerpb.Session {
+func (s *session) gologoo__Proto_5d9035705d48cffd75ca99cea5c61bc1() *spannerpb.Session {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	m := &spannerpb.Session{
-		Name:                   s.name,
-		CreateTime:             timestampProto(s.creation),
-		ApproximateLastUseTime: timestampProto(s.lastUse),
-	}
+	m := &spannerpb.Session{Name: s.name, CreateTime: timestampProto(s.creation), ApproximateLastUseTime: timestampProto(s.lastUse)}
 	return m
 }
-
-// timestampProto returns a valid timestamp.Timestamp,
-// or nil if the given time is zero or isn't representable.
-func timestampProto(t time.Time) *timestamppb.Timestamp {
+func gologoo__timestampProto_5d9035705d48cffd75ca99cea5c61bc1(t time.Time) *timestamppb.Timestamp {
 	if t.IsZero() {
 		return nil
 	}
@@ -144,130 +73,84 @@ func timestampProto(t time.Time) *timestamppb.Timestamp {
 	return ts
 }
 
-// lro represents a Long-Running Operation, generally a schema change.
 type lro struct {
 	mu    sync.Mutex
 	state *lropb.Operation
-
-	// waitc is closed when anyone starts waiting on the LRO.
-	// waitatom is CAS'd from 0 to 1 to make that closing safe.
-	waitc    chan struct{}
+	waitc chan struct {
+	}
 	waitatom int32
 }
 
-func newLRO(initState *lropb.Operation) *lro {
-	return &lro{
-		state: initState,
-		waitc: make(chan struct{}),
-	}
+func gologoo__newLRO_5d9035705d48cffd75ca99cea5c61bc1(initState *lropb.Operation) *lro {
+	return &lro{state: initState, waitc: make(chan struct {
+	})}
 }
-
-func (l *lro) noWait() {
+func (l *lro) gologoo__noWait_5d9035705d48cffd75ca99cea5c61bc1() {
 	if atomic.CompareAndSwapInt32(&l.waitatom, 0, 1) {
 		close(l.waitc)
 	}
 }
-
-func (l *lro) State() *lropb.Operation {
+func (l *lro) gologoo__State_5d9035705d48cffd75ca99cea5c61bc1() *lropb.Operation {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return proto.Clone(l.state).(*lropb.Operation)
 }
 
-// Logger is something that can be used for logging.
-// It is matched by log.Printf and testing.T.Logf.
-type Logger func(format string, args ...interface{})
+type Logger func(format string, args ...interface {
+})
 
-// NewServer creates a new Server.
-// The Server will be listening for gRPC connections, without TLS, on the provided TCP address.
-// The resolved address is available in the Addr field.
-func NewServer(laddr string) (*Server, error) {
+func gologoo__NewServer_5d9035705d48cffd75ca99cea5c61bc1(laddr string) (*Server, error) {
 	l, err := net.Listen("tcp", laddr)
 	if err != nil {
 		return nil, err
 	}
-
-	s := &Server{
-		Addr: l.Addr().String(),
-		l:    l,
-		srv:  grpc.NewServer(),
-		s: &server{
-			logf: func(format string, args ...interface{}) {
-				log.Printf("spannertest.inmem: "+format, args...)
-			},
-			start:    time.Now(),
-			sessions: make(map[string]*session),
-			lros:     make(map[string]*lro),
-		},
-	}
+	s := &Server{Addr: l.Addr().String(), l: l, srv: grpc.NewServer(), s: &server{logf: func(format string, args ...interface {
+	}) {
+		log.Printf("spannertest.inmem: "+format, args...)
+	}, start: time.Now(), sessions: make(map[string]*session), lros: make(map[string]*lro)}}
 	adminpb.RegisterDatabaseAdminServer(s.srv, s.s)
 	spannerpb.RegisterSpannerServer(s.srv, s.s)
 	lropb.RegisterOperationsServer(s.srv, s.s)
-
 	go s.srv.Serve(s.l)
-
 	return s, nil
 }
-
-// SetLogger sets a logger for the server.
-// You can use a *testing.T as this argument to collate extra information
-// from the execution of the server.
-func (s *Server) SetLogger(l Logger) { s.s.logf = l }
-
-// Close shuts down the server.
-func (s *Server) Close() {
+func (s *Server) gologoo__SetLogger_5d9035705d48cffd75ca99cea5c61bc1(l Logger) {
+	s.s.logf = l
+}
+func (s *Server) gologoo__Close_5d9035705d48cffd75ca99cea5c61bc1() {
 	s.srv.Stop()
 	s.l.Close()
 }
-
-func genRandomSession() string {
+func gologoo__genRandomSession_5d9035705d48cffd75ca99cea5c61bc1() string {
 	var b [4]byte
 	rand.Read(b[:])
 	return fmt.Sprintf("%x", b)
 }
-
-func genRandomTransaction() string {
+func gologoo__genRandomTransaction_5d9035705d48cffd75ca99cea5c61bc1() string {
 	var b [6]byte
 	rand.Read(b[:])
 	return fmt.Sprintf("tx-%x", b)
 }
-
-func genRandomOperation() string {
+func gologoo__genRandomOperation_5d9035705d48cffd75ca99cea5c61bc1() string {
 	var b [3]byte
 	rand.Read(b[:])
 	return fmt.Sprintf("op-%x", b)
 }
-
-func (s *server) GetOperation(ctx context.Context, req *lropb.GetOperationRequest) (*lropb.Operation, error) {
+func (s *server) gologoo__GetOperation_5d9035705d48cffd75ca99cea5c61bc1(ctx context.Context, req *lropb.GetOperationRequest) (*lropb.Operation, error) {
 	s.mu.Lock()
 	lro, ok := s.lros[req.Name]
 	s.mu.Unlock()
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "unknown LRO %q", req.Name)
 	}
-
-	// Someone is waiting on this LRO. Disable sleeping in its Run method.
 	lro.noWait()
-
 	return lro.State(), nil
 }
-
-func (s *server) GetDatabase(ctx context.Context, req *adminpb.GetDatabaseRequest) (*adminpb.Database, error) {
+func (s *server) gologoo__GetDatabase_5d9035705d48cffd75ca99cea5c61bc1(ctx context.Context, req *adminpb.GetDatabaseRequest) (*adminpb.Database, error) {
 	s.logf("GetDatabase(%q)", req.Name)
-
-	return &adminpb.Database{
-		Name:       req.Name,
-		State:      adminpb.Database_READY,
-		CreateTime: timestampProto(s.start),
-	}, nil
+	return &adminpb.Database{Name: req.Name, State: adminpb.Database_READY, CreateTime: timestampProto(s.start)}, nil
 }
-
-// UpdateDDL applies the given DDL to the server.
-//
-// This is a convenience method for tests that may assume an existing schema.
-// The more general approach is to dial this server using an admin client, and
-// use the UpdateDatabaseDdl RPC method.
-func (s *Server) UpdateDDL(ddl *spansql.DDL) error {
+func (s *Server) gologoo__UpdateDDL_5d9035705d48cffd75ca99cea5c61bc1(ddl *spansql.DDL) error {
 	ctx := context.Background()
 	for _, stmt := range ddl.List {
 		if st := s.s.runOneDDL(ctx, stmt); st.Code() != codes.OK {
@@ -276,41 +159,30 @@ func (s *Server) UpdateDDL(ddl *spansql.DDL) error {
 	}
 	return nil
 }
-
-func (s *server) UpdateDatabaseDdl(ctx context.Context, req *adminpb.UpdateDatabaseDdlRequest) (*lropb.Operation, error) {
-	// Parse all the DDL statements first.
+func (s *server) gologoo__UpdateDatabaseDdl_5d9035705d48cffd75ca99cea5c61bc1(ctx context.Context, req *adminpb.UpdateDatabaseDdlRequest) (*lropb.Operation, error) {
 	var stmts []spansql.DDLStmt
 	for _, s := range req.Statements {
 		stmt, err := spansql.ParseDDLStmt(s)
 		if err != nil {
-			// TODO: check what code the real Spanner returns here.
 			return nil, status.Errorf(codes.InvalidArgument, "bad DDL statement %q: %v", s, err)
 		}
 		stmts = append(stmts, stmt)
 	}
-
-	// Nothing should be depending on the exact structure of this,
-	// but it is specified in google/spanner/admin/database/v1/spanner_database_admin.proto.
 	id := "projects/fake-proj/instances/fake-instance/databases/fake-db/operations/" + genRandomOperation()
 	lro := newLRO(&lropb.Operation{Name: id})
 	s.mu.Lock()
 	s.lros[id] = lro
 	s.mu.Unlock()
-
 	go lro.Run(s, stmts)
 	return lro.State(), nil
 }
-
-func (l *lro) Run(s *server, stmts []spansql.DDLStmt) {
+func (l *lro) gologoo__Run_5d9035705d48cffd75ca99cea5c61bc1(s *server, stmts []spansql.DDLStmt) {
 	ctx := context.Background()
-
 	for _, stmt := range stmts {
-		// Simulate delayed DDL application, but only if nobody is waiting.
 		select {
 		case <-time.After(100 * time.Millisecond):
 		case <-l.waitc:
 		}
-
 		if st := s.runOneDDL(ctx, stmt); st.Code() != codes.OK {
 			l.mu.Lock()
 			l.state.Done = true
@@ -319,106 +191,69 @@ func (l *lro) Run(s *server, stmts []spansql.DDLStmt) {
 			return
 		}
 	}
-
 	l.mu.Lock()
 	l.state.Done = true
 	l.state.Result = &lropb.Operation_Response{&anypb.Any{}}
 	l.mu.Unlock()
 }
-
-func (s *server) runOneDDL(ctx context.Context, stmt spansql.DDLStmt) *status.Status {
+func (s *server) gologoo__runOneDDL_5d9035705d48cffd75ca99cea5c61bc1(ctx context.Context, stmt spansql.DDLStmt) *status.Status {
 	return s.db.ApplyDDL(stmt)
 }
-
-func (s *server) GetDatabaseDdl(ctx context.Context, req *adminpb.GetDatabaseDdlRequest) (*adminpb.GetDatabaseDdlResponse, error) {
+func (s *server) gologoo__GetDatabaseDdl_5d9035705d48cffd75ca99cea5c61bc1(ctx context.Context, req *adminpb.GetDatabaseDdlRequest) (*adminpb.GetDatabaseDdlResponse, error) {
 	s.logf("GetDatabaseDdl(%q)", req.Database)
-
 	var resp adminpb.GetDatabaseDdlResponse
 	for _, stmt := range s.db.GetDDL() {
 		resp.Statements = append(resp.Statements, stmt.SQL())
 	}
 	return &resp, nil
 }
-
-func (s *server) CreateSession(ctx context.Context, req *spannerpb.CreateSessionRequest) (*spannerpb.Session, error) {
-	//s.logf("CreateSession(%q)", req.Database)
+func (s *server) gologoo__CreateSession_5d9035705d48cffd75ca99cea5c61bc1(ctx context.Context, req *spannerpb.CreateSessionRequest) (*spannerpb.Session, error) {
 	return s.newSession(), nil
 }
-
-func (s *server) newSession() *spannerpb.Session {
+func (s *server) gologoo__newSession_5d9035705d48cffd75ca99cea5c61bc1() *spannerpb.Session {
 	id := genRandomSession()
 	now := time.Now()
-	sess := &session{
-		name:         id,
-		creation:     now,
-		lastUse:      now,
-		transactions: make(map[string]*transaction),
-	}
+	sess := &session{name: id, creation: now, lastUse: now, transactions: make(map[string]*transaction)}
 	sess.ctx, sess.cancel = context.WithCancel(context.Background())
-
 	s.mu.Lock()
 	s.sessions[id] = sess
 	s.mu.Unlock()
-
 	return sess.Proto()
 }
-
-func (s *server) BatchCreateSessions(ctx context.Context, req *spannerpb.BatchCreateSessionsRequest) (*spannerpb.BatchCreateSessionsResponse, error) {
-	//s.logf("BatchCreateSessions(%q)", req.Database)
-
+func (s *server) gologoo__BatchCreateSessions_5d9035705d48cffd75ca99cea5c61bc1(ctx context.Context, req *spannerpb.BatchCreateSessionsRequest) (*spannerpb.BatchCreateSessionsResponse, error) {
 	var sessions []*spannerpb.Session
 	for i := int32(0); i < req.GetSessionCount(); i++ {
 		sessions = append(sessions, s.newSession())
 	}
-
 	return &spannerpb.BatchCreateSessionsResponse{Session: sessions}, nil
 }
-
-func (s *server) GetSession(ctx context.Context, req *spannerpb.GetSessionRequest) (*spannerpb.Session, error) {
+func (s *server) gologoo__GetSession_5d9035705d48cffd75ca99cea5c61bc1(ctx context.Context, req *spannerpb.GetSessionRequest) (*spannerpb.Session, error) {
 	s.mu.Lock()
 	sess, ok := s.sessions[req.Name]
 	s.mu.Unlock()
-
 	if !ok {
-		// TODO: what error does the real Spanner return?
 		return nil, status.Errorf(codes.NotFound, "unknown session %q", req.Name)
 	}
-
 	return sess.Proto(), nil
 }
-
-// TODO: ListSessions
-
-func (s *server) DeleteSession(ctx context.Context, req *spannerpb.DeleteSessionRequest) (*emptypb.Empty, error) {
-	//s.logf("DeleteSession(%q)", req.Name)
-
+func (s *server) gologoo__DeleteSession_5d9035705d48cffd75ca99cea5c61bc1(ctx context.Context, req *spannerpb.DeleteSessionRequest) (*emptypb.Empty, error) {
 	s.mu.Lock()
 	sess, ok := s.sessions[req.Name]
 	delete(s.sessions, req.Name)
 	s.mu.Unlock()
-
 	if !ok {
-		// TODO: what error does the real Spanner return?
 		return nil, status.Errorf(codes.NotFound, "unknown session %q", req.Name)
 	}
-
-	// Terminate any operations in this session.
 	sess.cancel()
-
 	return &emptypb.Empty{}, nil
 }
-
-// popTx returns an existing transaction, removing it from the session.
-// This is called when a transaction is finishing (Commit, Rollback).
-func (s *server) popTx(sessionID, tid string) (tx *transaction, err error) {
+func (s *server) gologoo__popTx_5d9035705d48cffd75ca99cea5c61bc1(sessionID, tid string) (tx *transaction, err error) {
 	s.mu.Lock()
 	sess, ok := s.sessions[sessionID]
 	s.mu.Unlock()
 	if !ok {
-		// TODO: what error does the real Spanner return?
 		return nil, status.Errorf(codes.NotFound, "unknown session %q", sessionID)
 	}
-
 	sess.mu.Lock()
 	sess.lastUse = time.Now()
 	tx, ok = sess.transactions[tid]
@@ -427,44 +262,31 @@ func (s *server) popTx(sessionID, tid string) (tx *transaction, err error) {
 	}
 	sess.mu.Unlock()
 	if !ok {
-		// TODO: what error does the real Spanner return?
 		return nil, status.Errorf(codes.NotFound, "unknown transaction ID %q", tid)
 	}
 	return tx, nil
 }
-
-// readTx returns a transaction for the given session and transaction selector.
-// It is used by read/query operations (ExecuteStreamingSql, StreamingRead).
-func (s *server) readTx(ctx context.Context, session string, tsel *spannerpb.TransactionSelector) (tx *transaction, cleanup func(), err error) {
+func (s *server) gologoo__readTx_5d9035705d48cffd75ca99cea5c61bc1(ctx context.Context, session string, tsel *spannerpb.TransactionSelector) (tx *transaction, cleanup func(), err error) {
 	s.mu.Lock()
 	sess, ok := s.sessions[session]
 	s.mu.Unlock()
 	if !ok {
-		// TODO: what error does the real Spanner return?
 		return nil, nil, status.Errorf(codes.NotFound, "unknown session %q", session)
 	}
-
 	sess.mu.Lock()
 	sess.lastUse = time.Now()
 	sess.mu.Unlock()
-
-	// Only give a read-only transaction regardless of whether the selector
-	// is requesting a read-write or read-only one, since this is in readTx
-	// and so shouldn't be mutating anyway.
 	singleUse := func() (*transaction, func(), error) {
 		tx := s.db.NewReadOnlyTransaction()
 		return tx, tx.Rollback, nil
 	}
-
 	if tsel.GetSelector() == nil {
 		return singleUse()
 	}
-
 	switch sel := tsel.Selector.(type) {
 	default:
 		return nil, nil, fmt.Errorf("TransactionSelector type %T not supported", sel)
 	case *spannerpb.TransactionSelector_SingleUse:
-		// Ignore options (e.g. timestamps).
 		switch mode := sel.SingleUse.Mode.(type) {
 		case *spannerpb.TransactionOptions_ReadOnly_:
 			return singleUse()
@@ -480,16 +302,11 @@ func (s *server) readTx(ctx context.Context, session string, tsel *spannerpb.Tra
 		if !ok {
 			return nil, nil, fmt.Errorf("no transaction with id %q", sel.Id)
 		}
-		return tx, func() {}, nil
+		return tx, func() {
+		}, nil
 	}
 }
-
-func (s *server) ExecuteSql(ctx context.Context, req *spannerpb.ExecuteSqlRequest) (*spannerpb.ResultSet, error) {
-	// Assume this is probably a DML statement or a ping from the session pool.
-	// Queries normally use ExecuteStreamingSql.
-	// TODO: Expand this to support more things.
-
-	// If it is a single-use transaction we assume it is a query.
+func (s *server) gologoo__ExecuteSql_5d9035705d48cffd75ca99cea5c61bc1(ctx context.Context, req *spannerpb.ExecuteSqlRequest) (*spannerpb.ResultSet, error) {
 	if req.Transaction.GetSelector() == nil || req.Transaction.GetSingleUse().GetReadOnly() != nil {
 		ri, err := s.executeQuery(req)
 		if err != nil {
@@ -497,14 +314,12 @@ func (s *server) ExecuteSql(ctx context.Context, req *spannerpb.ExecuteSqlReques
 		}
 		return s.resultSet(ri)
 	}
-
 	obj, ok := req.Transaction.Selector.(*spannerpb.TransactionSelector_Id)
 	if !ok {
 		return nil, fmt.Errorf("unsupported transaction type %T", req.Transaction.Selector)
 	}
 	tid := string(obj.Id)
-	_ = tid // TODO: lookup an existing transaction by ID.
-
+	_ = tid
 	stmt, err := spansql.ParseDMLStmt(req.Sql)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "bad DML: %v", err)
@@ -513,79 +328,58 @@ func (s *server) ExecuteSql(ctx context.Context, req *spannerpb.ExecuteSqlReques
 	if err != nil {
 		return nil, err
 	}
-
 	s.logf("Executing: %s", stmt.SQL())
 	if len(params) > 0 {
 		s.logf("        ▹ %v", params)
 	}
-
 	n, err := s.db.Execute(stmt, params)
 	if err != nil {
 		return nil, err
 	}
-	return &spannerpb.ResultSet{
-		Stats: &spannerpb.ResultSetStats{
-			RowCount: &spannerpb.ResultSetStats_RowCountExact{int64(n)},
-		},
-	}, nil
+	return &spannerpb.ResultSet{Stats: &spannerpb.ResultSetStats{RowCount: &spannerpb.ResultSetStats_RowCountExact{int64(n)}}}, nil
 }
-
-func (s *server) ExecuteStreamingSql(req *spannerpb.ExecuteSqlRequest, stream spannerpb.Spanner_ExecuteStreamingSqlServer) error {
+func (s *server) gologoo__ExecuteStreamingSql_5d9035705d48cffd75ca99cea5c61bc1(req *spannerpb.ExecuteSqlRequest, stream spannerpb.Spanner_ExecuteStreamingSqlServer) error {
 	tx, cleanup, err := s.readTx(stream.Context(), req.Session, req.Transaction)
 	if err != nil {
 		return err
 	}
 	defer cleanup()
-
 	ri, err := s.executeQuery(req)
 	if err != nil {
 		return err
 	}
 	return s.readStream(stream.Context(), tx, stream.Send, ri)
 }
-
-func (s *server) executeQuery(req *spannerpb.ExecuteSqlRequest) (ri rowIter, err error) {
+func (s *server) gologoo__executeQuery_5d9035705d48cffd75ca99cea5c61bc1(req *spannerpb.ExecuteSqlRequest) (ri rowIter, err error) {
 	q, err := spansql.ParseQuery(req.Sql)
 	if err != nil {
-		// TODO: check what code the real Spanner returns here.
 		return nil, status.Errorf(codes.InvalidArgument, "bad query: %v", err)
 	}
-
 	params, err := parseQueryParams(req.GetParams(), req.ParamTypes)
 	if err != nil {
 		return nil, err
 	}
-
 	s.logf("Querying: %s", q.SQL())
 	if len(params) > 0 {
 		s.logf("        ▹ %v", params)
 	}
-
 	return s.db.Query(q, params)
 }
-
-// TODO: Read
-
-func (s *server) StreamingRead(req *spannerpb.ReadRequest, stream spannerpb.Spanner_StreamingReadServer) error {
+func (s *server) gologoo__StreamingRead_5d9035705d48cffd75ca99cea5c61bc1(req *spannerpb.ReadRequest, stream spannerpb.Spanner_StreamingReadServer) error {
 	tx, cleanup, err := s.readTx(stream.Context(), req.Session, req.Transaction)
 	if err != nil {
 		return err
 	}
 	defer cleanup()
-
-	// Bail out if various advanced features are being used.
 	if req.Index != "" {
-		// This is okay; we can still return results.
 		s.logf("Warning: index reads (%q) not supported", req.Index)
 	}
 	if len(req.ResumeToken) > 0 {
-		// This should only happen if we send resume_token ourselves.
 		return fmt.Errorf("read resumption not supported")
 	}
 	if len(req.PartitionToken) > 0 {
 		return fmt.Errorf("partition restrictions not supported")
 	}
-
 	var ri rowIter
 	if req.KeySet.All {
 		s.logf("Reading all from %s (cols: %v)", req.Table, req.Columns)
@@ -597,22 +391,14 @@ func (s *server) StreamingRead(req *spannerpb.ReadRequest, stream spannerpb.Span
 	if err != nil {
 		return err
 	}
-
-	// TODO: Figure out the right contexts to use here. There's the session one (sess.ctx),
-	// but also this specific RPC one (stream.Context()). Which takes precedence?
-	// They appear to be independent.
-
 	return s.readStream(stream.Context(), tx, stream.Send, ri)
 }
-
-func (s *server) resultSet(ri rowIter) (*spannerpb.ResultSet, error) {
+func (s *server) gologoo__resultSet_5d9035705d48cffd75ca99cea5c61bc1(ri rowIter) (*spannerpb.ResultSet, error) {
 	rsm, err := s.buildResultSetMetadata(ri)
 	if err != nil {
 		return nil, err
 	}
-	rs := &spannerpb.ResultSet{
-		Metadata: rsm,
-	}
+	rs := &spannerpb.ResultSet{Metadata: rsm}
 	for {
 		row, err := ri.Next()
 		if err == io.EOF {
@@ -620,7 +406,6 @@ func (s *server) resultSet(ri rowIter) (*spannerpb.ResultSet, error) {
 		} else if err != nil {
 			return nil, err
 		}
-
 		values := make([]*structpb.Value, len(row))
 		for i, x := range row {
 			v, err := spannerValueFromValue(x)
@@ -633,13 +418,11 @@ func (s *server) resultSet(ri rowIter) (*spannerpb.ResultSet, error) {
 	}
 	return rs, nil
 }
-
-func (s *server) readStream(ctx context.Context, tx *transaction, send func(*spannerpb.PartialResultSet) error, ri rowIter) error {
+func (s *server) gologoo__readStream_5d9035705d48cffd75ca99cea5c61bc1(ctx context.Context, tx *transaction, send func(*spannerpb.PartialResultSet) error, ri rowIter) error {
 	rsm, err := s.buildResultSetMetadata(ri)
 	if err != nil {
 		return err
 	}
-
 	for {
 		row, err := ri.Next()
 		if err == io.EOF {
@@ -647,7 +430,6 @@ func (s *server) readStream(ctx context.Context, tx *transaction, send func(*spa
 		} else if err != nil {
 			return err
 		}
-
 		values := make([]*structpb.Value, len(row))
 		for i, x := range row {
 			v, err := spannerValueFromValue(x)
@@ -656,80 +438,50 @@ func (s *server) readStream(ctx context.Context, tx *transaction, send func(*spa
 			}
 			values[i] = v
 		}
-
-		prs := &spannerpb.PartialResultSet{
-			Metadata: rsm,
-			Values:   values,
-		}
+		prs := &spannerpb.PartialResultSet{Metadata: rsm, Values: values}
 		if err := send(prs); err != nil {
 			return err
 		}
-
-		// ResultSetMetadata is only set for the first PartialResultSet.
 		rsm = nil
 	}
-
 	return nil
 }
-
-func (s *server) buildResultSetMetadata(ri rowIter) (*spannerpb.ResultSetMetadata, error) {
-	// Build the result set metadata.
-	rsm := &spannerpb.ResultSetMetadata{
-		RowType: &spannerpb.StructType{},
-		// TODO: transaction info?
-	}
+func (s *server) gologoo__buildResultSetMetadata_5d9035705d48cffd75ca99cea5c61bc1(ri rowIter) (*spannerpb.ResultSetMetadata, error) {
+	rsm := &spannerpb.ResultSetMetadata{RowType: &spannerpb.StructType{}}
 	for _, ci := range ri.Cols() {
 		st, err := spannerTypeFromType(ci.Type)
 		if err != nil {
 			return nil, err
 		}
-		rsm.RowType.Fields = append(rsm.RowType.Fields, &spannerpb.StructType_Field{
-			Name: string(ci.Name),
-			Type: st,
-		})
+		rsm.RowType.Fields = append(rsm.RowType.Fields, &spannerpb.StructType_Field{Name: string(ci.Name), Type: st})
 	}
 	return rsm, nil
 }
-
-func (s *server) BeginTransaction(ctx context.Context, req *spannerpb.BeginTransactionRequest) (*spannerpb.Transaction, error) {
-	//s.logf("BeginTransaction(%v)", req)
-
+func (s *server) gologoo__BeginTransaction_5d9035705d48cffd75ca99cea5c61bc1(ctx context.Context, req *spannerpb.BeginTransactionRequest) (*spannerpb.Transaction, error) {
 	s.mu.Lock()
 	sess, ok := s.sessions[req.Session]
 	s.mu.Unlock()
 	if !ok {
-		// TODO: what error does the real Spanner return?
 		return nil, status.Errorf(codes.NotFound, "unknown session %q", req.Session)
 	}
-
 	id := genRandomTransaction()
 	tx := s.db.NewTransaction()
-
 	sess.mu.Lock()
 	sess.lastUse = time.Now()
 	sess.transactions[id] = tx
 	sess.mu.Unlock()
-
 	tr := &spannerpb.Transaction{Id: []byte(id)}
-
 	if req.GetOptions().GetReadOnly().GetReturnReadTimestamp() {
-		// Return the last commit timestamp.
-		// This isn't wholly accurate, but may be good enough for simple use cases.
 		tr.ReadTimestamp = timestampProto(s.db.LastCommitTimestamp())
 	}
-
 	return tr, nil
 }
-
-func (s *server) Commit(ctx context.Context, req *spannerpb.CommitRequest) (resp *spannerpb.CommitResponse, err error) {
-	//s.logf("Commit(%q, %q)", req.Session, req.Transaction)
-
+func (s *server) gologoo__Commit_5d9035705d48cffd75ca99cea5c61bc1(ctx context.Context, req *spannerpb.CommitRequest) (resp *spannerpb.CommitResponse, err error) {
 	obj, ok := req.Transaction.(*spannerpb.CommitRequest_TransactionId)
 	if !ok {
 		return nil, fmt.Errorf("unsupported transaction type %T", req.Transaction)
 	}
 	tid := string(obj.TransactionId)
-
 	tx, err := s.popTx(req.Session, tid)
 	if err != nil {
 		return nil, err
@@ -740,7 +492,6 @@ func (s *server) Commit(ctx context.Context, req *spannerpb.CommitRequest) (resp
 		}
 	}()
 	tx.Start()
-
 	for _, m := range req.Mutations {
 		switch op := m.Operation.(type) {
 		default:
@@ -766,41 +517,28 @@ func (s *server) Commit(ctx context.Context, req *spannerpb.CommitRequest) (resp
 		case *spannerpb.Mutation_Delete_:
 			del := op.Delete
 			ks := del.KeySet
-
 			err := s.db.Delete(tx, spansql.ID(del.Table), ks.Keys, makeKeyRangeList(ks.Ranges), ks.All)
 			if err != nil {
 				return nil, err
 			}
 		}
-
 	}
-
 	ts, err := tx.Commit()
 	if err != nil {
 		return nil, err
 	}
-
-	return &spannerpb.CommitResponse{
-		CommitTimestamp: timestampProto(ts),
-	}, nil
+	return &spannerpb.CommitResponse{CommitTimestamp: timestampProto(ts)}, nil
 }
-
-func (s *server) Rollback(ctx context.Context, req *spannerpb.RollbackRequest) (*emptypb.Empty, error) {
+func (s *server) gologoo__Rollback_5d9035705d48cffd75ca99cea5c61bc1(ctx context.Context, req *spannerpb.RollbackRequest) (*emptypb.Empty, error) {
 	s.logf("Rollback(%v)", req)
-
 	tx, err := s.popTx(req.Session, string(req.TransactionId))
 	if err != nil {
 		return nil, err
 	}
-
 	tx.Rollback()
-
 	return &emptypb.Empty{}, nil
 }
-
-// TODO: PartitionQuery, PartitionRead
-
-func parseQueryParams(p *structpb.Struct, types map[string]*spannerpb.Type) (queryParams, error) {
+func gologoo__parseQueryParams_5d9035705d48cffd75ca99cea5c61bc1(p *structpb.Struct, types map[string]*spannerpb.Type) (queryParams, error) {
 	params := make(queryParams)
 	for k, v := range p.GetFields() {
 		p, err := parseQueryParam(v, types[k])
@@ -811,17 +549,13 @@ func parseQueryParams(p *structpb.Struct, types map[string]*spannerpb.Type) (que
 	}
 	return params, nil
 }
-
-func parseQueryParam(v *structpb.Value, typ *spannerpb.Type) (queryParam, error) {
-	// TODO: Use valForType and typeFromSpannerType more comprehensively here?
-	// They are only used for StringValue vs, since that's what mostly needs parsing.
-
+func gologoo__parseQueryParam_5d9035705d48cffd75ca99cea5c61bc1(v *structpb.Value, typ *spannerpb.Type) (queryParam, error) {
 	rawv := v
 	switch v := v.Kind.(type) {
 	default:
 		return queryParam{}, fmt.Errorf("unsupported well-known type value kind %T", v)
 	case *structpb.Value_NullValue:
-		return queryParam{Value: nil}, nil // TODO: set a type?
+		return queryParam{Value: nil}, nil
 	case *structpb.Value_BoolValue:
 		return queryParam{Value: v.BoolValue, Type: boolType}, nil
 	case *structpb.Value_NumberValue:
@@ -837,9 +571,9 @@ func parseQueryParam(v *structpb.Value, typ *spannerpb.Type) (queryParam, error)
 		}
 		return queryParam{Value: val, Type: t}, nil
 	case *structpb.Value_ListValue:
-		var list []interface{}
+		var list []interface {
+		}
 		for _, elem := range v.ListValue.Values {
-			// TODO: Change the type parameter passed through? We only look at the code.
 			p, err := parseQueryParam(elem, typ)
 			if err != nil {
 				return queryParam{}, err
@@ -853,8 +587,7 @@ func parseQueryParam(v *structpb.Value, typ *spannerpb.Type) (queryParam, error)
 		return queryParam{Value: list, Type: t}, nil
 	}
 }
-
-func typeFromSpannerType(st *spannerpb.Type) (spansql.Type, error) {
+func gologoo__typeFromSpannerType_5d9035705d48cffd75ca99cea5c61bc1(st *spannerpb.Type) (spansql.Type, error) {
 	switch st.Code {
 	default:
 		return spansql.Type{}, fmt.Errorf("unhandled spanner type code %v", st.Code)
@@ -869,9 +602,9 @@ func typeFromSpannerType(st *spannerpb.Type) (spansql.Type, error) {
 	case spannerpb.TypeCode_DATE:
 		return spansql.Type{Base: spansql.Date}, nil
 	case spannerpb.TypeCode_STRING:
-		return spansql.Type{Base: spansql.String}, nil // no len
+		return spansql.Type{Base: spansql.String}, nil
 	case spannerpb.TypeCode_BYTES:
-		return spansql.Type{Base: spansql.Bytes}, nil // no len
+		return spansql.Type{Base: spansql.Bytes}, nil
 	case spannerpb.TypeCode_ARRAY:
 		typ, err := typeFromSpannerType(st.ArrayElementType)
 		if err != nil {
@@ -881,8 +614,7 @@ func typeFromSpannerType(st *spannerpb.Type) (spansql.Type, error) {
 		return typ, nil
 	}
 }
-
-func spannerTypeFromType(typ spansql.Type) (*spannerpb.Type, error) {
+func gologoo__spannerTypeFromType_5d9035705d48cffd75ca99cea5c61bc1(typ spansql.Type) (*spannerpb.Type, error) {
 	var code spannerpb.TypeCode
 	switch typ.Base {
 	default:
@@ -904,22 +636,18 @@ func spannerTypeFromType(typ spansql.Type) (*spannerpb.Type, error) {
 	}
 	st := &spannerpb.Type{Code: code}
 	if typ.Array {
-		st = &spannerpb.Type{
-			Code:             spannerpb.TypeCode_ARRAY,
-			ArrayElementType: st,
-		}
+		st = &spannerpb.Type{Code: spannerpb.TypeCode_ARRAY, ArrayElementType: st}
 	}
 	return st, nil
 }
-
-func spannerValueFromValue(x interface{}) (*structpb.Value, error) {
+func gologoo__spannerValueFromValue_5d9035705d48cffd75ca99cea5c61bc1(x interface {
+}) (*structpb.Value, error) {
 	switch x := x.(type) {
 	default:
 		return nil, fmt.Errorf("unhandled database value type %T", x)
 	case bool:
 		return &structpb.Value{Kind: &structpb.Value_BoolValue{x}}, nil
 	case int64:
-		// The Spanner int64 is actually a decimal string.
 		s := strconv.FormatInt(x, 10)
 		return &structpb.Value{Kind: &structpb.Value_StringValue{s}}, nil
 	case float64:
@@ -929,15 +657,14 @@ func spannerValueFromValue(x interface{}) (*structpb.Value, error) {
 	case []byte:
 		return &structpb.Value{Kind: &structpb.Value_StringValue{base64.StdEncoding.EncodeToString(x)}}, nil
 	case civil.Date:
-		// RFC 3339 date format.
 		return &structpb.Value{Kind: &structpb.Value_StringValue{x.String()}}, nil
 	case time.Time:
-		// RFC 3339 timestamp format with zone Z.
 		s := x.Format("2006-01-02T15:04:05.999999999Z")
 		return &structpb.Value{Kind: &structpb.Value_StringValue{s}}, nil
 	case nil:
 		return &structpb.Value{Kind: &structpb.Value_NullValue{}}, nil
-	case []interface{}:
+	case []interface {
+	}:
 		var vs []*structpb.Value
 		for _, elem := range x {
 			v, err := spannerValueFromValue(elem)
@@ -946,21 +673,17 @@ func spannerValueFromValue(x interface{}) (*structpb.Value, error) {
 			}
 			vs = append(vs, v)
 		}
-		return &structpb.Value{Kind: &structpb.Value_ListValue{
-			&structpb.ListValue{Values: vs},
-		}}, nil
+		return &structpb.Value{Kind: &structpb.Value_ListValue{&structpb.ListValue{Values: vs}}}, nil
 	}
 }
-
-func makeKeyRangeList(ranges []*spannerpb.KeyRange) keyRangeList {
+func gologoo__makeKeyRangeList_5d9035705d48cffd75ca99cea5c61bc1(ranges []*spannerpb.KeyRange) keyRangeList {
 	var krl keyRangeList
 	for _, r := range ranges {
 		krl = append(krl, makeKeyRange(r))
 	}
 	return krl
 }
-
-func makeKeyRange(r *spannerpb.KeyRange) *keyRange {
+func gologoo__makeKeyRange_5d9035705d48cffd75ca99cea5c61bc1(r *spannerpb.KeyRange) *keyRange {
 	var kr keyRange
 	switch s := r.StartKeyType.(type) {
 	case *spannerpb.KeyRange_StartClosed:
@@ -978,10 +701,354 @@ func makeKeyRange(r *spannerpb.KeyRange) *keyRange {
 	}
 	return &kr
 }
-
-func idList(ss []string) (ids []spansql.ID) {
+func gologoo__idList_5d9035705d48cffd75ca99cea5c61bc1(ss []string) (ids []spansql.ID) {
 	for _, s := range ss {
 		ids = append(ids, spansql.ID(s))
 	}
+	return
+}
+func (s *session) Proto() *spannerpb.Session {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Proto_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : (none)\n")
+	r0 := s.gologoo__Proto_5d9035705d48cffd75ca99cea5c61bc1()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func timestampProto(t time.Time) *timestamppb.Timestamp {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__timestampProto_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v\n", t)
+	r0 := gologoo__timestampProto_5d9035705d48cffd75ca99cea5c61bc1(t)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func newLRO(initState *lropb.Operation) *lro {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__newLRO_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v\n", initState)
+	r0 := gologoo__newLRO_5d9035705d48cffd75ca99cea5c61bc1(initState)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (l *lro) noWait() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__noWait_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : (none)\n")
+	l.gologoo__noWait_5d9035705d48cffd75ca99cea5c61bc1()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (l *lro) State() *lropb.Operation {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__State_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : (none)\n")
+	r0 := l.gologoo__State_5d9035705d48cffd75ca99cea5c61bc1()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func NewServer(laddr string) (*Server, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__NewServer_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v\n", laddr)
+	r0, r1 := gologoo__NewServer_5d9035705d48cffd75ca99cea5c61bc1(laddr)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *Server) SetLogger(l Logger) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SetLogger_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v\n", l)
+	s.gologoo__SetLogger_5d9035705d48cffd75ca99cea5c61bc1(l)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (s *Server) Close() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Close_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : (none)\n")
+	s.gologoo__Close_5d9035705d48cffd75ca99cea5c61bc1()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func genRandomSession() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__genRandomSession_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : (none)\n")
+	r0 := gologoo__genRandomSession_5d9035705d48cffd75ca99cea5c61bc1()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func genRandomTransaction() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__genRandomTransaction_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : (none)\n")
+	r0 := gologoo__genRandomTransaction_5d9035705d48cffd75ca99cea5c61bc1()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func genRandomOperation() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__genRandomOperation_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : (none)\n")
+	r0 := gologoo__genRandomOperation_5d9035705d48cffd75ca99cea5c61bc1()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *server) GetOperation(ctx context.Context, req *lropb.GetOperationRequest) (*lropb.Operation, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__GetOperation_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__GetOperation_5d9035705d48cffd75ca99cea5c61bc1(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *server) GetDatabase(ctx context.Context, req *adminpb.GetDatabaseRequest) (*adminpb.Database, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__GetDatabase_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__GetDatabase_5d9035705d48cffd75ca99cea5c61bc1(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *Server) UpdateDDL(ddl *spansql.DDL) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__UpdateDDL_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v\n", ddl)
+	r0 := s.gologoo__UpdateDDL_5d9035705d48cffd75ca99cea5c61bc1(ddl)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *server) UpdateDatabaseDdl(ctx context.Context, req *adminpb.UpdateDatabaseDdlRequest) (*lropb.Operation, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__UpdateDatabaseDdl_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__UpdateDatabaseDdl_5d9035705d48cffd75ca99cea5c61bc1(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (l *lro) Run(s *server, stmts []spansql.DDLStmt) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Run_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", s, stmts)
+	l.gologoo__Run_5d9035705d48cffd75ca99cea5c61bc1(s, stmts)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (s *server) runOneDDL(ctx context.Context, stmt spansql.DDLStmt) *status.Status {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__runOneDDL_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", ctx, stmt)
+	r0 := s.gologoo__runOneDDL_5d9035705d48cffd75ca99cea5c61bc1(ctx, stmt)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *server) GetDatabaseDdl(ctx context.Context, req *adminpb.GetDatabaseDdlRequest) (*adminpb.GetDatabaseDdlResponse, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__GetDatabaseDdl_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__GetDatabaseDdl_5d9035705d48cffd75ca99cea5c61bc1(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *server) CreateSession(ctx context.Context, req *spannerpb.CreateSessionRequest) (*spannerpb.Session, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__CreateSession_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__CreateSession_5d9035705d48cffd75ca99cea5c61bc1(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *server) newSession() *spannerpb.Session {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__newSession_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : (none)\n")
+	r0 := s.gologoo__newSession_5d9035705d48cffd75ca99cea5c61bc1()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *server) BatchCreateSessions(ctx context.Context, req *spannerpb.BatchCreateSessionsRequest) (*spannerpb.BatchCreateSessionsResponse, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__BatchCreateSessions_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__BatchCreateSessions_5d9035705d48cffd75ca99cea5c61bc1(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *server) GetSession(ctx context.Context, req *spannerpb.GetSessionRequest) (*spannerpb.Session, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__GetSession_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__GetSession_5d9035705d48cffd75ca99cea5c61bc1(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *server) DeleteSession(ctx context.Context, req *spannerpb.DeleteSessionRequest) (*emptypb.Empty, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__DeleteSession_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__DeleteSession_5d9035705d48cffd75ca99cea5c61bc1(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *server) popTx(sessionID, tid string) (tx *transaction, err error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__popTx_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", sessionID, tid)
+	tx, err = s.gologoo__popTx_5d9035705d48cffd75ca99cea5c61bc1(sessionID, tid)
+	log.Printf("Output: %v %v\n", tx, err)
+	return
+}
+func (s *server) readTx(ctx context.Context, session string, tsel *spannerpb.TransactionSelector) (tx *transaction, cleanup func(), err error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__readTx_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v %v\n", ctx, session, tsel)
+	tx, cleanup, err = s.gologoo__readTx_5d9035705d48cffd75ca99cea5c61bc1(ctx, session, tsel)
+	log.Printf("Output: %v %v %v\n", tx, cleanup, err)
+	return
+}
+func (s *server) ExecuteSql(ctx context.Context, req *spannerpb.ExecuteSqlRequest) (*spannerpb.ResultSet, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__ExecuteSql_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__ExecuteSql_5d9035705d48cffd75ca99cea5c61bc1(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *server) ExecuteStreamingSql(req *spannerpb.ExecuteSqlRequest, stream spannerpb.Spanner_ExecuteStreamingSqlServer) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__ExecuteStreamingSql_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", req, stream)
+	r0 := s.gologoo__ExecuteStreamingSql_5d9035705d48cffd75ca99cea5c61bc1(req, stream)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *server) executeQuery(req *spannerpb.ExecuteSqlRequest) (ri rowIter, err error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__executeQuery_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v\n", req)
+	ri, err = s.gologoo__executeQuery_5d9035705d48cffd75ca99cea5c61bc1(req)
+	log.Printf("Output: %v %v\n", ri, err)
+	return
+}
+func (s *server) StreamingRead(req *spannerpb.ReadRequest, stream spannerpb.Spanner_StreamingReadServer) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__StreamingRead_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", req, stream)
+	r0 := s.gologoo__StreamingRead_5d9035705d48cffd75ca99cea5c61bc1(req, stream)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *server) resultSet(ri rowIter) (*spannerpb.ResultSet, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__resultSet_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v\n", ri)
+	r0, r1 := s.gologoo__resultSet_5d9035705d48cffd75ca99cea5c61bc1(ri)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *server) readStream(ctx context.Context, tx *transaction, send func(*spannerpb.PartialResultSet) error, ri rowIter) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__readStream_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v %v %v\n", ctx, tx, send, ri)
+	r0 := s.gologoo__readStream_5d9035705d48cffd75ca99cea5c61bc1(ctx, tx, send, ri)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *server) buildResultSetMetadata(ri rowIter) (*spannerpb.ResultSetMetadata, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__buildResultSetMetadata_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v\n", ri)
+	r0, r1 := s.gologoo__buildResultSetMetadata_5d9035705d48cffd75ca99cea5c61bc1(ri)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *server) BeginTransaction(ctx context.Context, req *spannerpb.BeginTransactionRequest) (*spannerpb.Transaction, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__BeginTransaction_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__BeginTransaction_5d9035705d48cffd75ca99cea5c61bc1(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *server) Commit(ctx context.Context, req *spannerpb.CommitRequest) (resp *spannerpb.CommitResponse, err error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Commit_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", ctx, req)
+	resp, err = s.gologoo__Commit_5d9035705d48cffd75ca99cea5c61bc1(ctx, req)
+	log.Printf("Output: %v %v\n", resp, err)
+	return
+}
+func (s *server) Rollback(ctx context.Context, req *spannerpb.RollbackRequest) (*emptypb.Empty, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Rollback_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__Rollback_5d9035705d48cffd75ca99cea5c61bc1(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func parseQueryParams(p *structpb.Struct, types map[string]*spannerpb.Type) (queryParams, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__parseQueryParams_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", p, types)
+	r0, r1 := gologoo__parseQueryParams_5d9035705d48cffd75ca99cea5c61bc1(p, types)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func parseQueryParam(v *structpb.Value, typ *spannerpb.Type) (queryParam, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__parseQueryParam_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v %v\n", v, typ)
+	r0, r1 := gologoo__parseQueryParam_5d9035705d48cffd75ca99cea5c61bc1(v, typ)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func typeFromSpannerType(st *spannerpb.Type) (spansql.Type, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__typeFromSpannerType_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v\n", st)
+	r0, r1 := gologoo__typeFromSpannerType_5d9035705d48cffd75ca99cea5c61bc1(st)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func spannerTypeFromType(typ spansql.Type) (*spannerpb.Type, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__spannerTypeFromType_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v\n", typ)
+	r0, r1 := gologoo__spannerTypeFromType_5d9035705d48cffd75ca99cea5c61bc1(typ)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func spannerValueFromValue(x interface {
+}) (*structpb.Value, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__spannerValueFromValue_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v\n", x)
+	r0, r1 := gologoo__spannerValueFromValue_5d9035705d48cffd75ca99cea5c61bc1(x)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func makeKeyRangeList(ranges []*spannerpb.KeyRange) keyRangeList {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__makeKeyRangeList_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v\n", ranges)
+	r0 := gologoo__makeKeyRangeList_5d9035705d48cffd75ca99cea5c61bc1(ranges)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func makeKeyRange(r *spannerpb.KeyRange) *keyRange {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__makeKeyRange_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v\n", r)
+	r0 := gologoo__makeKeyRange_5d9035705d48cffd75ca99cea5c61bc1(r)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func idList(ss []string) (ids []spansql.ID) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__idList_5d9035705d48cffd75ca99cea5c61bc1")
+	log.Printf("Input : %v\n", ss)
+	ids = gologoo__idList_5d9035705d48cffd75ca99cea5c61bc1(ss)
+	log.Printf("Output: %v\n", ids)
 	return
 }

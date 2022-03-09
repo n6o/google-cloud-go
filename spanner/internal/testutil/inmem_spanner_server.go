@@ -1,17 +1,3 @@
-// Copyright 2019 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     https://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package testutil
 
 import (
@@ -24,7 +10,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
 	"github.com/golang/protobuf/ptypes"
 	emptypb "github.com/golang/protobuf/ptypes/empty"
 	structpb "github.com/golang/protobuf/ptypes/struct"
@@ -36,46 +21,19 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	gstatus "google.golang.org/grpc/status"
+	"log"
 )
 
-var (
-	// KvMeta is the Metadata for mocked KV table.
-	KvMeta = spannerpb.ResultSetMetadata{
-		RowType: &spannerpb.StructType{
-			Fields: []*spannerpb.StructType_Field{
-				{
-					Name: "Key",
-					Type: &spannerpb.Type{Code: spannerpb.TypeCode_STRING},
-				},
-				{
-					Name: "Value",
-					Type: &spannerpb.Type{Code: spannerpb.TypeCode_STRING},
-				},
-			},
-		},
-	}
-)
+var KvMeta = spannerpb.ResultSetMetadata{RowType: &spannerpb.StructType{Fields: []*spannerpb.StructType_Field{{Name: "Key", Type: &spannerpb.Type{Code: spannerpb.TypeCode_STRING}}, {Name: "Value", Type: &spannerpb.Type{Code: spannerpb.TypeCode_STRING}}}}}
 
-// StatementResultType indicates the type of result returned by a SQL
-// statement.
 type StatementResultType int
 
 const (
-	// StatementResultError indicates that the sql statement returns an error.
-	StatementResultError StatementResultType = 0
-	// StatementResultResultSet indicates that the sql statement returns a
-	// result set.
-	StatementResultResultSet StatementResultType = 1
-	// StatementResultUpdateCount indicates that the sql statement returns an
-	// update count.
+	StatementResultError       StatementResultType = 0
+	StatementResultResultSet   StatementResultType = 1
 	StatementResultUpdateCount StatementResultType = 2
-	// MaxRowsPerPartialResultSet is the maximum number of rows returned in
-	// each PartialResultSet. This number is deliberately set to a low value to
-	// ensure that most queries return more than one PartialResultSet.
-	MaxRowsPerPartialResultSet = 1
+	MaxRowsPerPartialResultSet                     = 1
 )
-
-// The method names that can be used to register execution times and errors.
 const (
 	MethodBeginTransaction    string = "BEGIN_TRANSACTION"
 	MethodCommitTransaction   string = "COMMIT_TRANSACTION"
@@ -89,8 +47,6 @@ const (
 	MethodStreamingRead       string = "EXECUTE_STREAMING_READ"
 )
 
-// StatementResult represents a mocked result on the test server. The result is
-// either of: a ResultSet, an update count or an error.
 type StatementResult struct {
 	Type         StatementResultType
 	Err          error
@@ -98,34 +54,25 @@ type StatementResult struct {
 	UpdateCount  int64
 	ResumeTokens [][]byte
 }
-
-// PartialResultSetExecutionTime represents execution times and errors that
-// should be used when a PartialResult at the specified resume token is to
-// be returned.
 type PartialResultSetExecutionTime struct {
 	ResumeToken   []byte
 	ExecutionTime time.Duration
 	Err           error
 }
 
-// ToPartialResultSets converts a ResultSet to a PartialResultSet. This method
-// is used to convert a mocked result to a PartialResultSet when one of the
-// streaming methods are called.
-func (s *StatementResult) ToPartialResultSets(resumeToken []byte) (result []*spannerpb.PartialResultSet, err error) {
+func (s *StatementResult) gologoo__ToPartialResultSets_705673bfbb22749846b5ab424c32ea33(resumeToken []byte) (result []*spannerpb.PartialResultSet, err error) {
 	var startIndex uint64
 	if len(resumeToken) > 0 {
 		if startIndex, err = DecodeResumeToken(resumeToken); err != nil {
 			return nil, err
 		}
 	}
-
 	totalRows := uint64(len(s.ResultSet.Rows))
 	if totalRows > 0 {
 		for {
 			rowCount := min(totalRows-startIndex, uint64(MaxRowsPerPartialResultSet))
 			rows := s.ResultSet.Rows[startIndex : startIndex+rowCount]
-			values := make([]*structpb.Value,
-				len(rows)*len(s.ResultSet.Metadata.RowType.Fields))
+			values := make([]*structpb.Value, len(rows)*len(s.ResultSet.Metadata.RowType.Fields))
 			var idx int
 			for _, row := range rows {
 				for colIdx := range s.ResultSet.Metadata.RowType.Fields {
@@ -139,322 +86,206 @@ func (s *StatementResult) ToPartialResultSets(resumeToken []byte) (result []*spa
 			} else {
 				rt = s.ResumeTokens[startIndex]
 			}
-			result = append(result, &spannerpb.PartialResultSet{
-				Metadata:    s.ResultSet.Metadata,
-				Values:      values,
-				ResumeToken: rt,
-			})
-
+			result = append(result, &spannerpb.PartialResultSet{Metadata: s.ResultSet.Metadata, Values: values, ResumeToken: rt})
 			startIndex += rowCount
 			if startIndex == totalRows {
 				break
 			}
 		}
 	} else {
-		result = append(result, &spannerpb.PartialResultSet{
-			Metadata: s.ResultSet.Metadata,
-		})
+		result = append(result, &spannerpb.PartialResultSet{Metadata: s.ResultSet.Metadata})
 	}
 	return result, nil
 }
-
-func min(x, y uint64) uint64 {
+func gologoo__min_705673bfbb22749846b5ab424c32ea33(x, y uint64) uint64 {
 	if x > y {
 		return y
 	}
 	return x
 }
-
-func (s *StatementResult) updateCountToPartialResultSet(exact bool) *spannerpb.PartialResultSet {
-	return &spannerpb.PartialResultSet{
-		Stats: s.convertUpdateCountToResultSet(exact).Stats,
-	}
+func (s *StatementResult) gologoo__updateCountToPartialResultSet_705673bfbb22749846b5ab424c32ea33(exact bool) *spannerpb.PartialResultSet {
+	return &spannerpb.PartialResultSet{Stats: s.convertUpdateCountToResultSet(exact).Stats}
 }
-
-// Converts an update count to a ResultSet, as DML statements also return the
-// update count as the statistics of a ResultSet.
-func (s *StatementResult) convertUpdateCountToResultSet(exact bool) *spannerpb.ResultSet {
+func (s *StatementResult) gologoo__convertUpdateCountToResultSet_705673bfbb22749846b5ab424c32ea33(exact bool) *spannerpb.ResultSet {
 	if exact {
-		return &spannerpb.ResultSet{
-			Stats: &spannerpb.ResultSetStats{
-				RowCount: &spannerpb.ResultSetStats_RowCountExact{
-					RowCountExact: s.UpdateCount,
-				},
-			},
-		}
+		return &spannerpb.ResultSet{Stats: &spannerpb.ResultSetStats{RowCount: &spannerpb.ResultSetStats_RowCountExact{RowCountExact: s.UpdateCount}}}
 	}
-	return &spannerpb.ResultSet{
-		Stats: &spannerpb.ResultSetStats{
-			RowCount: &spannerpb.ResultSetStats_RowCountLowerBound{
-				RowCountLowerBound: s.UpdateCount,
-			},
-		},
-	}
+	return &spannerpb.ResultSet{Stats: &spannerpb.ResultSetStats{RowCount: &spannerpb.ResultSetStats_RowCountLowerBound{RowCountLowerBound: s.UpdateCount}}}
 }
 
-// SimulatedExecutionTime represents the time the execution of a method
-// should take, and any errors that should be returned by the method.
 type SimulatedExecutionTime struct {
 	MinimumExecutionTime time.Duration
 	RandomExecutionTime  time.Duration
 	Errors               []error
-	// Keep error after execution. The error will continue to be returned until
-	// it is cleared.
-	KeepError bool
+	KeepError            bool
 }
-
-// InMemSpannerServer contains the SpannerServer interface plus a couple
-// of specific methods for adding mocked results and resetting the server.
 type InMemSpannerServer interface {
 	spannerpb.SpannerServer
-
-	// Stops this server.
 	Stop()
-
-	// Resets the in-mem server to its default state, deleting all sessions and
-	// transactions that have been created on the server. Mocked results are
-	// not deleted.
 	Reset()
-
-	// Sets an error that will be returned by the next server call. The server
-	// call will also automatically clear the error.
 	SetError(err error)
-
-	// Puts a mocked result on the server for a specific sql statement. The
-	// server does not parse the SQL string in any way, it is merely used as
-	// a key to the mocked result. The result will be used for all methods that
-	// expect a SQL statement, including (batch) DML methods.
 	PutStatementResult(sql string, result *StatementResult) error
-
-	// Puts a mocked result on the server for a specific partition token. The
-	// result will only be used for query requests that specify a partition
-	// token.
 	PutPartitionResult(partitionToken []byte, result *StatementResult) error
-
-	// Adds a PartialResultSetExecutionTime to the server that should be returned
-	// for the specified SQL string.
 	AddPartialResultSetError(sql string, err PartialResultSetExecutionTime)
-
-	// Removes a mocked result on the server for a specific sql statement.
 	RemoveStatementResult(sql string)
-
-	// Aborts the specified transaction . This method can be used to test
-	// transaction retry logic.
 	AbortTransaction(id []byte)
-
-	// Puts a simulated execution time for one of the Spanner methods.
 	PutExecutionTime(method string, executionTime SimulatedExecutionTime)
-	// Freeze stalls all requests.
 	Freeze()
-	// Unfreeze restores processing requests.
 	Unfreeze()
-
 	TotalSessionsCreated() uint
 	TotalSessionsDeleted() uint
 	SetMaxSessionsReturnedByServerPerBatchRequest(sessionCount int32)
 	SetMaxSessionsReturnedByServerInTotal(sessionCount int32)
-
-	ReceivedRequests() chan interface{}
+	ReceivedRequests() chan interface {
+	}
 	DumpSessions() map[string]bool
 	ClearPings()
 	DumpPings() []string
 }
-
 type inMemSpannerServer struct {
-	// Embed for forward compatibility.
-	// Tests will keep working if more methods are added
-	// in the future.
 	spannerpb.SpannerServer
-
-	mu sync.Mutex
-	// Set to true when this server been stopped. This is the end state of a
-	// server, a stopped server cannot be restarted.
-	stopped bool
-	// If set, all calls return this error.
-	err error
-	// The mock server creates session IDs using this counter.
-	sessionCounter uint64
-	// The sessions that have been created on this mock server.
-	sessions map[string]*spannerpb.Session
-	// Last use times per session.
-	sessionLastUseTime map[string]time.Time
-	// The mock server creates transaction IDs per session using these
-	// counters.
-	transactionCounters map[string]*uint64
-	// The transactions that have been created on this mock server.
-	transactions map[string]*spannerpb.Transaction
-	// The transactions that have been (manually) aborted on the server.
-	abortedTransactions map[string]bool
-	// The transactions that are marked as PartitionedDMLTransaction
-	partitionedDmlTransactions map[string]bool
-	// The mocked results for this server.
-	statementResults map[string]*StatementResult
-	partitionResults map[string]*StatementResult
-	// The simulated execution times per method.
-	executionTimes map[string]*SimulatedExecutionTime
-	// The simulated errors for partial result sets
-	partialResultSetErrors map[string][]*PartialResultSetExecutionTime
-
-	totalSessionsCreated uint
-	totalSessionsDeleted uint
-	// The maximum number of sessions that will be created per batch request.
+	mu                                         sync.Mutex
+	stopped                                    bool
+	err                                        error
+	sessionCounter                             uint64
+	sessions                                   map[string]*spannerpb.Session
+	sessionLastUseTime                         map[string]time.Time
+	transactionCounters                        map[string]*uint64
+	transactions                               map[string]*spannerpb.Transaction
+	abortedTransactions                        map[string]bool
+	partitionedDmlTransactions                 map[string]bool
+	statementResults                           map[string]*StatementResult
+	partitionResults                           map[string]*StatementResult
+	executionTimes                             map[string]*SimulatedExecutionTime
+	partialResultSetErrors                     map[string][]*PartialResultSetExecutionTime
+	totalSessionsCreated                       uint
+	totalSessionsDeleted                       uint
 	maxSessionsReturnedByServerPerBatchRequest int32
 	maxSessionsReturnedByServerInTotal         int32
-	receivedRequests                           chan interface{}
-	// Session ping history.
-	pings []string
-
-	// Server will stall on any requests.
-	freezed chan struct{}
+	receivedRequests                           chan interface {
+	}
+	pings   []string
+	freezed chan struct {
+	}
 }
 
-// NewInMemSpannerServer creates a new in-mem test server.
-func NewInMemSpannerServer() InMemSpannerServer {
+func gologoo__NewInMemSpannerServer_705673bfbb22749846b5ab424c32ea33() InMemSpannerServer {
 	res := &inMemSpannerServer{}
 	res.initDefaults()
 	res.statementResults = make(map[string]*StatementResult)
 	res.partitionResults = make(map[string]*StatementResult)
 	res.executionTimes = make(map[string]*SimulatedExecutionTime)
 	res.partialResultSetErrors = make(map[string][]*PartialResultSetExecutionTime)
-	res.receivedRequests = make(chan interface{}, 1000000)
-	// Produce a closed channel, so the default action of ready is to not block.
+	res.receivedRequests = make(chan interface {
+	}, 1000000)
 	res.Freeze()
 	res.Unfreeze()
 	return res
 }
-
-func (s *inMemSpannerServer) Stop() {
+func (s *inMemSpannerServer) gologoo__Stop_705673bfbb22749846b5ab424c32ea33() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.stopped = true
 	close(s.receivedRequests)
 }
-
-// Resets the test server to its initial state, deleting all sessions and
-// transactions that have been created on the server. This method will not
-// remove mocked results.
-func (s *inMemSpannerServer) Reset() {
+func (s *inMemSpannerServer) gologoo__Reset_705673bfbb22749846b5ab424c32ea33() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	close(s.receivedRequests)
-	s.receivedRequests = make(chan interface{}, 1000000)
+	s.receivedRequests = make(chan interface {
+	}, 1000000)
 	s.initDefaults()
 }
-
-func (s *inMemSpannerServer) SetError(err error) {
+func (s *inMemSpannerServer) gologoo__SetError_705673bfbb22749846b5ab424c32ea33(err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.err = err
 }
-
-// Registers a mocked result for a SQL statement on the server.
-func (s *inMemSpannerServer) PutStatementResult(sql string, result *StatementResult) error {
+func (s *inMemSpannerServer) gologoo__PutStatementResult_705673bfbb22749846b5ab424c32ea33(sql string, result *StatementResult) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.statementResults[sql] = result
 	return nil
 }
-
-func (s *inMemSpannerServer) RemoveStatementResult(sql string) {
+func (s *inMemSpannerServer) gologoo__RemoveStatementResult_705673bfbb22749846b5ab424c32ea33(sql string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.statementResults, sql)
 }
-
-// Registers a mocked result for a partition token on the server.
-func (s *inMemSpannerServer) PutPartitionResult(partitionToken []byte, result *StatementResult) error {
+func (s *inMemSpannerServer) gologoo__PutPartitionResult_705673bfbb22749846b5ab424c32ea33(partitionToken []byte, result *StatementResult) error {
 	tokenString := string(partitionToken)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.partitionResults[tokenString] = result
 	return nil
 }
-
-func (s *inMemSpannerServer) AbortTransaction(id []byte) {
+func (s *inMemSpannerServer) gologoo__AbortTransaction_705673bfbb22749846b5ab424c32ea33(id []byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.abortedTransactions[string(id)] = true
 }
-
-func (s *inMemSpannerServer) PutExecutionTime(method string, executionTime SimulatedExecutionTime) {
+func (s *inMemSpannerServer) gologoo__PutExecutionTime_705673bfbb22749846b5ab424c32ea33(method string, executionTime SimulatedExecutionTime) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.executionTimes[method] = &executionTime
 }
-
-func (s *inMemSpannerServer) AddPartialResultSetError(sql string, partialResultSetError PartialResultSetExecutionTime) {
+func (s *inMemSpannerServer) gologoo__AddPartialResultSetError_705673bfbb22749846b5ab424c32ea33(sql string, partialResultSetError PartialResultSetExecutionTime) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.partialResultSetErrors[sql] = append(s.partialResultSetErrors[sql], &partialResultSetError)
 }
-
-// Freeze stalls all requests.
-func (s *inMemSpannerServer) Freeze() {
+func (s *inMemSpannerServer) gologoo__Freeze_705673bfbb22749846b5ab424c32ea33() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.freezed = make(chan struct{})
+	s.freezed = make(chan struct {
+	})
 }
-
-// Unfreeze restores processing requests.
-func (s *inMemSpannerServer) Unfreeze() {
+func (s *inMemSpannerServer) gologoo__Unfreeze_705673bfbb22749846b5ab424c32ea33() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	close(s.freezed)
 }
-
-// ready checks conditions before executing requests
-func (s *inMemSpannerServer) ready() {
+func (s *inMemSpannerServer) gologoo__ready_705673bfbb22749846b5ab424c32ea33() {
 	s.mu.Lock()
 	freezed := s.freezed
 	s.mu.Unlock()
-	// check if server should be freezed
 	<-freezed
 }
-
-func (s *inMemSpannerServer) TotalSessionsCreated() uint {
+func (s *inMemSpannerServer) gologoo__TotalSessionsCreated_705673bfbb22749846b5ab424c32ea33() uint {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.totalSessionsCreated
 }
-
-func (s *inMemSpannerServer) TotalSessionsDeleted() uint {
+func (s *inMemSpannerServer) gologoo__TotalSessionsDeleted_705673bfbb22749846b5ab424c32ea33() uint {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.totalSessionsDeleted
 }
-
-func (s *inMemSpannerServer) SetMaxSessionsReturnedByServerPerBatchRequest(sessionCount int32) {
+func (s *inMemSpannerServer) gologoo__SetMaxSessionsReturnedByServerPerBatchRequest_705673bfbb22749846b5ab424c32ea33(sessionCount int32) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.maxSessionsReturnedByServerPerBatchRequest = sessionCount
 }
-
-func (s *inMemSpannerServer) SetMaxSessionsReturnedByServerInTotal(sessionCount int32) {
+func (s *inMemSpannerServer) gologoo__SetMaxSessionsReturnedByServerInTotal_705673bfbb22749846b5ab424c32ea33(sessionCount int32) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.maxSessionsReturnedByServerInTotal = sessionCount
 }
-
-func (s *inMemSpannerServer) ReceivedRequests() chan interface{} {
+func (s *inMemSpannerServer) gologoo__ReceivedRequests_705673bfbb22749846b5ab424c32ea33() chan interface {
+} {
 	return s.receivedRequests
 }
-
-// ClearPings clears the ping history from the server.
-func (s *inMemSpannerServer) ClearPings() {
+func (s *inMemSpannerServer) gologoo__ClearPings_705673bfbb22749846b5ab424c32ea33() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.pings = nil
 }
-
-// DumpPings dumps the ping history.
-func (s *inMemSpannerServer) DumpPings() []string {
+func (s *inMemSpannerServer) gologoo__DumpPings_705673bfbb22749846b5ab424c32ea33() []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]string(nil), s.pings...)
 }
-
-// DumpSessions dumps the internal session table.
-func (s *inMemSpannerServer) DumpSessions() map[string]bool {
+func (s *inMemSpannerServer) gologoo__DumpSessions_705673bfbb22749846b5ab424c32ea33() map[string]bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := map[string]bool{}
@@ -463,8 +294,7 @@ func (s *inMemSpannerServer) DumpSessions() map[string]bool {
 	}
 	return st
 }
-
-func (s *inMemSpannerServer) initDefaults() {
+func (s *inMemSpannerServer) gologoo__initDefaults_705673bfbb22749846b5ab424c32ea33() {
 	s.sessionCounter = 0
 	s.maxSessionsReturnedByServerPerBatchRequest = 100
 	s.sessions = make(map[string]*spannerpb.Session)
@@ -474,13 +304,11 @@ func (s *inMemSpannerServer) initDefaults() {
 	s.partitionedDmlTransactions = make(map[string]bool)
 	s.transactionCounters = make(map[string]*uint64)
 }
-
-func (s *inMemSpannerServer) generateSessionNameLocked(database string) string {
+func (s *inMemSpannerServer) gologoo__generateSessionNameLocked_705673bfbb22749846b5ab424c32ea33(database string) string {
 	s.sessionCounter++
 	return fmt.Sprintf("%s/sessions/%d", database, s.sessionCounter)
 }
-
-func (s *inMemSpannerServer) findSession(name string) (*spannerpb.Session, error) {
+func (s *inMemSpannerServer) gologoo__findSession_705673bfbb22749846b5ab424c32ea33(name string) (*spannerpb.Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	session := s.sessions[name]
@@ -490,41 +318,32 @@ func (s *inMemSpannerServer) findSession(name string) (*spannerpb.Session, error
 	return session, nil
 }
 
-// sessionResourceType is the type name of Spanner sessions.
 const sessionResourceType = "type.googleapis.com/google.spanner.v1.Session"
 
-func newSessionNotFoundError(name string) error {
+func gologoo__newSessionNotFoundError_705673bfbb22749846b5ab424c32ea33(name string) error {
 	s := gstatus.Newf(codes.NotFound, "Session not found: Session with id %s not found", name)
 	s, _ = s.WithDetails(&errdetails.ResourceInfo{ResourceType: sessionResourceType, ResourceName: name})
 	return s.Err()
 }
-
-func (s *inMemSpannerServer) updateSessionLastUseTime(session string) {
+func (s *inMemSpannerServer) gologoo__updateSessionLastUseTime_705673bfbb22749846b5ab424c32ea33(session string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.sessionLastUseTime[session] = time.Now()
 }
-
-func getCurrentTimestamp() *timestamp.Timestamp {
+func gologoo__getCurrentTimestamp_705673bfbb22749846b5ab424c32ea33() *timestamp.Timestamp {
 	t := time.Now()
 	return &timestamp.Timestamp{Seconds: t.Unix(), Nanos: int32(t.Nanosecond())}
 }
-
-// Gets the transaction id from the transaction selector. If the selector
-// specifies that a new transaction should be started, this method will start
-// a new transaction and return the id of that transaction.
-func (s *inMemSpannerServer) getTransactionID(session *spannerpb.Session, txSelector *spannerpb.TransactionSelector) []byte {
+func (s *inMemSpannerServer) gologoo__getTransactionID_705673bfbb22749846b5ab424c32ea33(session *spannerpb.Session, txSelector *spannerpb.TransactionSelector) []byte {
 	var res []byte
 	if txSelector.GetBegin() != nil {
-		// Start a new transaction.
 		res = s.beginTransaction(session, txSelector.GetBegin()).Id
 	} else if txSelector.GetId() != nil {
 		res = txSelector.GetId()
 	}
 	return res
 }
-
-func (s *inMemSpannerServer) generateTransactionName(session string) string {
+func (s *inMemSpannerServer) gologoo__generateTransactionName_705673bfbb22749846b5ab424c32ea33(session string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	counter, ok := s.transactionCounters[session]
@@ -535,21 +354,16 @@ func (s *inMemSpannerServer) generateTransactionName(session string) string {
 	*counter++
 	return fmt.Sprintf("%s/transactions/%d", session, *counter)
 }
-
-func (s *inMemSpannerServer) beginTransaction(session *spannerpb.Session, options *spannerpb.TransactionOptions) *spannerpb.Transaction {
+func (s *inMemSpannerServer) gologoo__beginTransaction_705673bfbb22749846b5ab424c32ea33(session *spannerpb.Session, options *spannerpb.TransactionOptions) *spannerpb.Transaction {
 	id := s.generateTransactionName(session.Name)
-	res := &spannerpb.Transaction{
-		Id:            []byte(id),
-		ReadTimestamp: getCurrentTimestamp(),
-	}
+	res := &spannerpb.Transaction{Id: []byte(id), ReadTimestamp: getCurrentTimestamp()}
 	s.mu.Lock()
 	s.transactions[id] = res
 	s.partitionedDmlTransactions[id] = options.GetPartitionedDml() != nil
 	s.mu.Unlock()
 	return res
 }
-
-func (s *inMemSpannerServer) getTransactionByID(id []byte) (*spannerpb.Transaction, error) {
+func (s *inMemSpannerServer) gologoo__getTransactionByID_705673bfbb22749846b5ab424c32ea33(id []byte) (*spannerpb.Transaction, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	tx, ok := s.transactions[string(id)]
@@ -562,24 +376,19 @@ func (s *inMemSpannerServer) getTransactionByID(id []byte) (*spannerpb.Transacti
 	}
 	return tx, nil
 }
-
-func newAbortedErrorWithMinimalRetryDelay() error {
+func gologoo__newAbortedErrorWithMinimalRetryDelay_705673bfbb22749846b5ab424c32ea33() error {
 	st := gstatus.New(codes.Aborted, "Transaction has been aborted")
-	retry := &errdetails.RetryInfo{
-		RetryDelay: ptypes.DurationProto(time.Nanosecond),
-	}
+	retry := &errdetails.RetryInfo{RetryDelay: ptypes.DurationProto(time.Nanosecond)}
 	st, _ = st.WithDetails(retry)
 	return st.Err()
 }
-
-func (s *inMemSpannerServer) removeTransaction(tx *spannerpb.Transaction) {
+func (s *inMemSpannerServer) gologoo__removeTransaction_705673bfbb22749846b5ab424c32ea33(tx *spannerpb.Transaction) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.transactions, string(tx.Id))
 	delete(s.partitionedDmlTransactions, string(tx.Id))
 }
-
-func (s *inMemSpannerServer) getPartitionResult(partitionToken []byte) (*StatementResult, error) {
+func (s *inMemSpannerServer) gologoo__getPartitionResult_705673bfbb22749846b5ab424c32ea33(partitionToken []byte) (*StatementResult, error) {
 	tokenString := string(partitionToken)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -589,8 +398,7 @@ func (s *inMemSpannerServer) getPartitionResult(partitionToken []byte) (*Stateme
 	}
 	return result, nil
 }
-
-func (s *inMemSpannerServer) getStatementResult(sql string) (*StatementResult, error) {
+func (s *inMemSpannerServer) gologoo__getStatementResult_705673bfbb22749846b5ab424c32ea33(sql string) (*StatementResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	result, ok := s.statementResults[sql]
@@ -599,8 +407,8 @@ func (s *inMemSpannerServer) getStatementResult(sql string) (*StatementResult, e
 	}
 	return result, nil
 }
-
-func (s *inMemSpannerServer) simulateExecutionTime(method string, req interface{}) error {
+func (s *inMemSpannerServer) gologoo__simulateExecutionTime_705673bfbb22749846b5ab424c32ea33(method string, req interface {
+}) error {
 	s.mu.Lock()
 	if s.stopped {
 		s.mu.Unlock()
@@ -638,8 +446,7 @@ func (s *inMemSpannerServer) simulateExecutionTime(method string, req interface{
 	}
 	return nil
 }
-
-func (s *inMemSpannerServer) CreateSession(ctx context.Context, req *spannerpb.CreateSessionRequest) (*spannerpb.Session, error) {
+func (s *inMemSpannerServer) gologoo__CreateSession_705673bfbb22749846b5ab424c32ea33(ctx context.Context, req *spannerpb.CreateSessionRequest) (*spannerpb.Session, error) {
 	if err := s.simulateExecutionTime(MethodCreateSession, req); err != nil {
 		return nil, err
 	}
@@ -658,8 +465,7 @@ func (s *inMemSpannerServer) CreateSession(ctx context.Context, req *spannerpb.C
 	s.sessions[sessionName] = session
 	return session, nil
 }
-
-func (s *inMemSpannerServer) BatchCreateSessions(ctx context.Context, req *spannerpb.BatchCreateSessionsRequest) (*spannerpb.BatchCreateSessionsResponse, error) {
+func (s *inMemSpannerServer) gologoo__BatchCreateSessions_705673bfbb22749846b5ab424c32ea33(ctx context.Context, req *spannerpb.BatchCreateSessionsRequest) (*spannerpb.BatchCreateSessionsResponse, error) {
 	if err := s.simulateExecutionTime(MethodBatchCreateSession, req); err != nil {
 		return nil, err
 	}
@@ -695,8 +501,7 @@ func (s *inMemSpannerServer) BatchCreateSessions(ctx context.Context, req *spann
 	}
 	return &spannerpb.BatchCreateSessionsResponse{Session: sessions}, nil
 }
-
-func (s *inMemSpannerServer) GetSession(ctx context.Context, req *spannerpb.GetSessionRequest) (*spannerpb.Session, error) {
+func (s *inMemSpannerServer) gologoo__GetSession_705673bfbb22749846b5ab424c32ea33(ctx context.Context, req *spannerpb.GetSessionRequest) (*spannerpb.Session, error) {
 	if err := s.simulateExecutionTime(MethodGetSession, req); err != nil {
 		return nil, err
 	}
@@ -709,8 +514,7 @@ func (s *inMemSpannerServer) GetSession(ctx context.Context, req *spannerpb.GetS
 	}
 	return session, nil
 }
-
-func (s *inMemSpannerServer) ListSessions(ctx context.Context, req *spannerpb.ListSessionsRequest) (*spannerpb.ListSessionsResponse, error) {
+func (s *inMemSpannerServer) gologoo__ListSessions_705673bfbb22749846b5ab424c32ea33(ctx context.Context, req *spannerpb.ListSessionsRequest) (*spannerpb.ListSessionsResponse, error) {
 	s.mu.Lock()
 	if s.stopped {
 		s.mu.Unlock()
@@ -736,8 +540,7 @@ func (s *inMemSpannerServer) ListSessions(ctx context.Context, req *spannerpb.Li
 	res := &spannerpb.ListSessionsResponse{Sessions: sessions}
 	return res, nil
 }
-
-func (s *inMemSpannerServer) DeleteSession(ctx context.Context, req *spannerpb.DeleteSessionRequest) (*emptypb.Empty, error) {
+func (s *inMemSpannerServer) gologoo__DeleteSession_705673bfbb22749846b5ab424c32ea33(ctx context.Context, req *spannerpb.DeleteSessionRequest) (*emptypb.Empty, error) {
 	if err := s.simulateExecutionTime(MethodDeleteSession, req); err != nil {
 		return nil, err
 	}
@@ -753,8 +556,7 @@ func (s *inMemSpannerServer) DeleteSession(ctx context.Context, req *spannerpb.D
 	delete(s.sessions, req.Name)
 	return &emptypb.Empty{}, nil
 }
-
-func (s *inMemSpannerServer) ExecuteSql(ctx context.Context, req *spannerpb.ExecuteSqlRequest) (*spannerpb.ResultSet, error) {
+func (s *inMemSpannerServer) gologoo__ExecuteSql_705673bfbb22749846b5ab424c32ea33(ctx context.Context, req *spannerpb.ExecuteSqlRequest) (*spannerpb.ResultSet, error) {
 	if err := s.simulateExecutionTime(MethodExecuteSql, req); err != nil {
 		return nil, err
 	}
@@ -800,15 +602,13 @@ func (s *inMemSpannerServer) ExecuteSql(ctx context.Context, req *spannerpb.Exec
 	}
 	return nil, gstatus.Error(codes.Internal, "Unknown result type")
 }
-
-func (s *inMemSpannerServer) ExecuteStreamingSql(req *spannerpb.ExecuteSqlRequest, stream spannerpb.Spanner_ExecuteStreamingSqlServer) error {
+func (s *inMemSpannerServer) gologoo__ExecuteStreamingSql_705673bfbb22749846b5ab424c32ea33(req *spannerpb.ExecuteSqlRequest, stream spannerpb.Spanner_ExecuteStreamingSqlServer) error {
 	if err := s.simulateExecutionTime(MethodExecuteStreamingSql, req); err != nil {
 		return err
 	}
 	return s.executeStreamingSQL(req, stream)
 }
-
-func (s *inMemSpannerServer) executeStreamingSQL(req *spannerpb.ExecuteSqlRequest, stream spannerpb.Spanner_ExecuteStreamingSqlServer) error {
+func (s *inMemSpannerServer) gologoo__executeStreamingSQL_705673bfbb22749846b5ab424c32ea33(req *spannerpb.ExecuteSqlRequest, stream spannerpb.Spanner_ExecuteStreamingSqlServer) error {
 	if req.Session == "" {
 		return gstatus.Error(codes.InvalidArgument, "Missing session name")
 	}
@@ -875,8 +675,7 @@ func (s *inMemSpannerServer) executeStreamingSQL(req *spannerpb.ExecuteSqlReques
 	}
 	return gstatus.Error(codes.Internal, "Unknown result type")
 }
-
-func (s *inMemSpannerServer) ExecuteBatchDml(ctx context.Context, req *spannerpb.ExecuteBatchDmlRequest) (*spannerpb.ExecuteBatchDmlResponse, error) {
+func (s *inMemSpannerServer) gologoo__ExecuteBatchDml_705673bfbb22749846b5ab424c32ea33(ctx context.Context, req *spannerpb.ExecuteBatchDmlRequest) (*spannerpb.ExecuteBatchDmlResponse, error) {
 	if err := s.simulateExecutionTime(MethodExecuteBatchDml, req); err != nil {
 		return nil, err
 	}
@@ -919,8 +718,7 @@ func (s *inMemSpannerServer) ExecuteBatchDml(ctx context.Context, req *spannerpb
 	}
 	return resp, nil
 }
-
-func (s *inMemSpannerServer) Read(ctx context.Context, req *spannerpb.ReadRequest) (*spannerpb.ResultSet, error) {
+func (s *inMemSpannerServer) gologoo__Read_705673bfbb22749846b5ab424c32ea33(ctx context.Context, req *spannerpb.ReadRequest) (*spannerpb.ResultSet, error) {
 	s.mu.Lock()
 	if s.stopped {
 		s.mu.Unlock()
@@ -934,27 +732,14 @@ func (s *inMemSpannerServer) Read(ctx context.Context, req *spannerpb.ReadReques
 	}
 	return nil, gstatus.Error(codes.Unimplemented, "Method not yet implemented")
 }
-
-func (s *inMemSpannerServer) StreamingRead(req *spannerpb.ReadRequest, stream spannerpb.Spanner_StreamingReadServer) error {
+func (s *inMemSpannerServer) gologoo__StreamingRead_705673bfbb22749846b5ab424c32ea33(req *spannerpb.ReadRequest, stream spannerpb.Spanner_StreamingReadServer) error {
 	if err := s.simulateExecutionTime(MethodStreamingRead, req); err != nil {
 		return err
 	}
-	sqlReq := &spannerpb.ExecuteSqlRequest{
-		Session:        req.Session,
-		Transaction:    req.Transaction,
-		PartitionToken: req.PartitionToken,
-		ResumeToken:    req.ResumeToken,
-		// KeySet is currently ignored.
-		Sql: fmt.Sprintf(
-			"SELECT %s FROM %s",
-			strings.Join(req.Columns, ", "),
-			req.Table,
-		),
-	}
+	sqlReq := &spannerpb.ExecuteSqlRequest{Session: req.Session, Transaction: req.Transaction, PartitionToken: req.PartitionToken, ResumeToken: req.ResumeToken, Sql: fmt.Sprintf("SELECT %s FROM %s", strings.Join(req.Columns, ", "), req.Table)}
 	return s.executeStreamingSQL(sqlReq, stream)
 }
-
-func (s *inMemSpannerServer) BeginTransaction(ctx context.Context, req *spannerpb.BeginTransactionRequest) (*spannerpb.Transaction, error) {
+func (s *inMemSpannerServer) gologoo__BeginTransaction_705673bfbb22749846b5ab424c32ea33(ctx context.Context, req *spannerpb.BeginTransactionRequest) (*spannerpb.Transaction, error) {
 	if err := s.simulateExecutionTime(MethodBeginTransaction, req); err != nil {
 		return nil, err
 	}
@@ -969,8 +754,7 @@ func (s *inMemSpannerServer) BeginTransaction(ctx context.Context, req *spannerp
 	tx := s.beginTransaction(session, req.Options)
 	return tx, nil
 }
-
-func (s *inMemSpannerServer) Commit(ctx context.Context, req *spannerpb.CommitRequest) (*spannerpb.CommitResponse, error) {
+func (s *inMemSpannerServer) gologoo__Commit_705673bfbb22749846b5ab424c32ea33(ctx context.Context, req *spannerpb.CommitRequest) (*spannerpb.CommitResponse, error) {
 	if err := s.simulateExecutionTime(MethodCommitTransaction, req); err != nil {
 		return nil, err
 	}
@@ -996,14 +780,11 @@ func (s *inMemSpannerServer) Commit(ctx context.Context, req *spannerpb.CommitRe
 	s.removeTransaction(tx)
 	resp := &spannerpb.CommitResponse{CommitTimestamp: getCurrentTimestamp()}
 	if req.ReturnCommitStats {
-		resp.CommitStats = &spannerpb.CommitResponse_CommitStats{
-			MutationCount: int64(1),
-		}
+		resp.CommitStats = &spannerpb.CommitResponse_CommitStats{MutationCount: int64(1)}
 	}
 	return resp, nil
 }
-
-func (s *inMemSpannerServer) Rollback(ctx context.Context, req *spannerpb.RollbackRequest) (*emptypb.Empty, error) {
+func (s *inMemSpannerServer) gologoo__Rollback_705673bfbb22749846b5ab424c32ea33(ctx context.Context, req *spannerpb.RollbackRequest) (*emptypb.Empty, error) {
 	s.mu.Lock()
 	if s.stopped {
 		s.mu.Unlock()
@@ -1026,8 +807,7 @@ func (s *inMemSpannerServer) Rollback(ctx context.Context, req *spannerpb.Rollba
 	s.removeTransaction(tx)
 	return &emptypb.Empty{}, nil
 }
-
-func (s *inMemSpannerServer) PartitionQuery(ctx context.Context, req *spannerpb.PartitionQueryRequest) (*spannerpb.PartitionResponse, error) {
+func (s *inMemSpannerServer) gologoo__PartitionQuery_705673bfbb22749846b5ab424c32ea33(ctx context.Context, req *spannerpb.PartitionQueryRequest) (*spannerpb.PartitionResponse, error) {
 	s.mu.Lock()
 	if s.stopped {
 		s.mu.Unlock()
@@ -1060,38 +840,486 @@ func (s *inMemSpannerServer) PartitionQuery(ctx context.Context, req *spannerpb.
 		}
 		partitions = append(partitions, &spannerpb.Partition{PartitionToken: token})
 	}
-	return &spannerpb.PartitionResponse{
-		Partitions:  partitions,
-		Transaction: tx,
-	}, nil
+	return &spannerpb.PartitionResponse{Partitions: partitions, Transaction: tx}, nil
 }
-
-func (s *inMemSpannerServer) PartitionRead(ctx context.Context, req *spannerpb.PartitionReadRequest) (*spannerpb.PartitionResponse, error) {
-	return s.PartitionQuery(ctx, &spannerpb.PartitionQueryRequest{
-		Session:          req.Session,
-		Transaction:      req.Transaction,
-		PartitionOptions: req.PartitionOptions,
-		// KeySet is currently ignored.
-		Sql: fmt.Sprintf(
-			"SELECT %s FROM %s",
-			strings.Join(req.Columns, ", "),
-			req.Table,
-		),
-	})
+func (s *inMemSpannerServer) gologoo__PartitionRead_705673bfbb22749846b5ab424c32ea33(ctx context.Context, req *spannerpb.PartitionReadRequest) (*spannerpb.PartitionResponse, error) {
+	return s.PartitionQuery(ctx, &spannerpb.PartitionQueryRequest{Session: req.Session, Transaction: req.Transaction, PartitionOptions: req.PartitionOptions, Sql: fmt.Sprintf("SELECT %s FROM %s", strings.Join(req.Columns, ", "), req.Table)})
 }
-
-// EncodeResumeToken return mock resume token encoding for an uint64 integer.
-func EncodeResumeToken(t uint64) []byte {
+func gologoo__EncodeResumeToken_705673bfbb22749846b5ab424c32ea33(t uint64) []byte {
 	rt := make([]byte, 16)
 	binary.PutUvarint(rt, t)
 	return rt
 }
-
-// DecodeResumeToken decodes a mock resume token into an uint64 integer.
-func DecodeResumeToken(t []byte) (uint64, error) {
+func gologoo__DecodeResumeToken_705673bfbb22749846b5ab424c32ea33(t []byte) (uint64, error) {
 	s, n := binary.Uvarint(t)
 	if n <= 0 {
 		return 0, fmt.Errorf("invalid resume token: %v", t)
 	}
 	return s, nil
+}
+func (s *StatementResult) ToPartialResultSets(resumeToken []byte) (result []*spannerpb.PartialResultSet, err error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__ToPartialResultSets_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", resumeToken)
+	result, err = s.gologoo__ToPartialResultSets_705673bfbb22749846b5ab424c32ea33(resumeToken)
+	log.Printf("Output: %v %v\n", result, err)
+	return
+}
+func min(x, y uint64) uint64 {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__min_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", x, y)
+	r0 := gologoo__min_705673bfbb22749846b5ab424c32ea33(x, y)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *StatementResult) updateCountToPartialResultSet(exact bool) *spannerpb.PartialResultSet {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__updateCountToPartialResultSet_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", exact)
+	r0 := s.gologoo__updateCountToPartialResultSet_705673bfbb22749846b5ab424c32ea33(exact)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *StatementResult) convertUpdateCountToResultSet(exact bool) *spannerpb.ResultSet {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__convertUpdateCountToResultSet_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", exact)
+	r0 := s.gologoo__convertUpdateCountToResultSet_705673bfbb22749846b5ab424c32ea33(exact)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func NewInMemSpannerServer() InMemSpannerServer {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__NewInMemSpannerServer_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : (none)\n")
+	r0 := gologoo__NewInMemSpannerServer_705673bfbb22749846b5ab424c32ea33()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) Stop() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Stop_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : (none)\n")
+	s.gologoo__Stop_705673bfbb22749846b5ab424c32ea33()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (s *inMemSpannerServer) Reset() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Reset_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : (none)\n")
+	s.gologoo__Reset_705673bfbb22749846b5ab424c32ea33()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (s *inMemSpannerServer) SetError(err error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SetError_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", err)
+	s.gologoo__SetError_705673bfbb22749846b5ab424c32ea33(err)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (s *inMemSpannerServer) PutStatementResult(sql string, result *StatementResult) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__PutStatementResult_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", sql, result)
+	r0 := s.gologoo__PutStatementResult_705673bfbb22749846b5ab424c32ea33(sql, result)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) RemoveStatementResult(sql string) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__RemoveStatementResult_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", sql)
+	s.gologoo__RemoveStatementResult_705673bfbb22749846b5ab424c32ea33(sql)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (s *inMemSpannerServer) PutPartitionResult(partitionToken []byte, result *StatementResult) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__PutPartitionResult_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", partitionToken, result)
+	r0 := s.gologoo__PutPartitionResult_705673bfbb22749846b5ab424c32ea33(partitionToken, result)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) AbortTransaction(id []byte) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__AbortTransaction_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", id)
+	s.gologoo__AbortTransaction_705673bfbb22749846b5ab424c32ea33(id)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (s *inMemSpannerServer) PutExecutionTime(method string, executionTime SimulatedExecutionTime) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__PutExecutionTime_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", method, executionTime)
+	s.gologoo__PutExecutionTime_705673bfbb22749846b5ab424c32ea33(method, executionTime)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (s *inMemSpannerServer) AddPartialResultSetError(sql string, partialResultSetError PartialResultSetExecutionTime) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__AddPartialResultSetError_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", sql, partialResultSetError)
+	s.gologoo__AddPartialResultSetError_705673bfbb22749846b5ab424c32ea33(sql, partialResultSetError)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (s *inMemSpannerServer) Freeze() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Freeze_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : (none)\n")
+	s.gologoo__Freeze_705673bfbb22749846b5ab424c32ea33()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (s *inMemSpannerServer) Unfreeze() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Unfreeze_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : (none)\n")
+	s.gologoo__Unfreeze_705673bfbb22749846b5ab424c32ea33()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (s *inMemSpannerServer) ready() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__ready_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : (none)\n")
+	s.gologoo__ready_705673bfbb22749846b5ab424c32ea33()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (s *inMemSpannerServer) TotalSessionsCreated() uint {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__TotalSessionsCreated_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : (none)\n")
+	r0 := s.gologoo__TotalSessionsCreated_705673bfbb22749846b5ab424c32ea33()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) TotalSessionsDeleted() uint {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__TotalSessionsDeleted_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : (none)\n")
+	r0 := s.gologoo__TotalSessionsDeleted_705673bfbb22749846b5ab424c32ea33()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) SetMaxSessionsReturnedByServerPerBatchRequest(sessionCount int32) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SetMaxSessionsReturnedByServerPerBatchRequest_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", sessionCount)
+	s.gologoo__SetMaxSessionsReturnedByServerPerBatchRequest_705673bfbb22749846b5ab424c32ea33(sessionCount)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (s *inMemSpannerServer) SetMaxSessionsReturnedByServerInTotal(sessionCount int32) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SetMaxSessionsReturnedByServerInTotal_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", sessionCount)
+	s.gologoo__SetMaxSessionsReturnedByServerInTotal_705673bfbb22749846b5ab424c32ea33(sessionCount)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (s *inMemSpannerServer) ReceivedRequests() chan interface {
+} {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__ReceivedRequests_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : (none)\n")
+	r0 := s.gologoo__ReceivedRequests_705673bfbb22749846b5ab424c32ea33()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) ClearPings() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__ClearPings_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : (none)\n")
+	s.gologoo__ClearPings_705673bfbb22749846b5ab424c32ea33()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (s *inMemSpannerServer) DumpPings() []string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__DumpPings_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : (none)\n")
+	r0 := s.gologoo__DumpPings_705673bfbb22749846b5ab424c32ea33()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) DumpSessions() map[string]bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__DumpSessions_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : (none)\n")
+	r0 := s.gologoo__DumpSessions_705673bfbb22749846b5ab424c32ea33()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) initDefaults() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__initDefaults_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : (none)\n")
+	s.gologoo__initDefaults_705673bfbb22749846b5ab424c32ea33()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (s *inMemSpannerServer) generateSessionNameLocked(database string) string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__generateSessionNameLocked_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", database)
+	r0 := s.gologoo__generateSessionNameLocked_705673bfbb22749846b5ab424c32ea33(database)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) findSession(name string) (*spannerpb.Session, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__findSession_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", name)
+	r0, r1 := s.gologoo__findSession_705673bfbb22749846b5ab424c32ea33(name)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func newSessionNotFoundError(name string) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__newSessionNotFoundError_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", name)
+	r0 := gologoo__newSessionNotFoundError_705673bfbb22749846b5ab424c32ea33(name)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) updateSessionLastUseTime(session string) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__updateSessionLastUseTime_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", session)
+	s.gologoo__updateSessionLastUseTime_705673bfbb22749846b5ab424c32ea33(session)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func getCurrentTimestamp() *timestamp.Timestamp {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__getCurrentTimestamp_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : (none)\n")
+	r0 := gologoo__getCurrentTimestamp_705673bfbb22749846b5ab424c32ea33()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) getTransactionID(session *spannerpb.Session, txSelector *spannerpb.TransactionSelector) []byte {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__getTransactionID_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", session, txSelector)
+	r0 := s.gologoo__getTransactionID_705673bfbb22749846b5ab424c32ea33(session, txSelector)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) generateTransactionName(session string) string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__generateTransactionName_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", session)
+	r0 := s.gologoo__generateTransactionName_705673bfbb22749846b5ab424c32ea33(session)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) beginTransaction(session *spannerpb.Session, options *spannerpb.TransactionOptions) *spannerpb.Transaction {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__beginTransaction_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", session, options)
+	r0 := s.gologoo__beginTransaction_705673bfbb22749846b5ab424c32ea33(session, options)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) getTransactionByID(id []byte) (*spannerpb.Transaction, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__getTransactionByID_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", id)
+	r0, r1 := s.gologoo__getTransactionByID_705673bfbb22749846b5ab424c32ea33(id)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func newAbortedErrorWithMinimalRetryDelay() error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__newAbortedErrorWithMinimalRetryDelay_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : (none)\n")
+	r0 := gologoo__newAbortedErrorWithMinimalRetryDelay_705673bfbb22749846b5ab424c32ea33()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) removeTransaction(tx *spannerpb.Transaction) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__removeTransaction_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", tx)
+	s.gologoo__removeTransaction_705673bfbb22749846b5ab424c32ea33(tx)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (s *inMemSpannerServer) getPartitionResult(partitionToken []byte) (*StatementResult, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__getPartitionResult_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", partitionToken)
+	r0, r1 := s.gologoo__getPartitionResult_705673bfbb22749846b5ab424c32ea33(partitionToken)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *inMemSpannerServer) getStatementResult(sql string) (*StatementResult, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__getStatementResult_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", sql)
+	r0, r1 := s.gologoo__getStatementResult_705673bfbb22749846b5ab424c32ea33(sql)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *inMemSpannerServer) simulateExecutionTime(method string, req interface {
+}) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__simulateExecutionTime_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", method, req)
+	r0 := s.gologoo__simulateExecutionTime_705673bfbb22749846b5ab424c32ea33(method, req)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) CreateSession(ctx context.Context, req *spannerpb.CreateSessionRequest) (*spannerpb.Session, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__CreateSession_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__CreateSession_705673bfbb22749846b5ab424c32ea33(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *inMemSpannerServer) BatchCreateSessions(ctx context.Context, req *spannerpb.BatchCreateSessionsRequest) (*spannerpb.BatchCreateSessionsResponse, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__BatchCreateSessions_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__BatchCreateSessions_705673bfbb22749846b5ab424c32ea33(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *inMemSpannerServer) GetSession(ctx context.Context, req *spannerpb.GetSessionRequest) (*spannerpb.Session, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__GetSession_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__GetSession_705673bfbb22749846b5ab424c32ea33(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *inMemSpannerServer) ListSessions(ctx context.Context, req *spannerpb.ListSessionsRequest) (*spannerpb.ListSessionsResponse, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__ListSessions_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__ListSessions_705673bfbb22749846b5ab424c32ea33(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *inMemSpannerServer) DeleteSession(ctx context.Context, req *spannerpb.DeleteSessionRequest) (*emptypb.Empty, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__DeleteSession_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__DeleteSession_705673bfbb22749846b5ab424c32ea33(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *inMemSpannerServer) ExecuteSql(ctx context.Context, req *spannerpb.ExecuteSqlRequest) (*spannerpb.ResultSet, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__ExecuteSql_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__ExecuteSql_705673bfbb22749846b5ab424c32ea33(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *inMemSpannerServer) ExecuteStreamingSql(req *spannerpb.ExecuteSqlRequest, stream spannerpb.Spanner_ExecuteStreamingSqlServer) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__ExecuteStreamingSql_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", req, stream)
+	r0 := s.gologoo__ExecuteStreamingSql_705673bfbb22749846b5ab424c32ea33(req, stream)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) executeStreamingSQL(req *spannerpb.ExecuteSqlRequest, stream spannerpb.Spanner_ExecuteStreamingSqlServer) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__executeStreamingSQL_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", req, stream)
+	r0 := s.gologoo__executeStreamingSQL_705673bfbb22749846b5ab424c32ea33(req, stream)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) ExecuteBatchDml(ctx context.Context, req *spannerpb.ExecuteBatchDmlRequest) (*spannerpb.ExecuteBatchDmlResponse, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__ExecuteBatchDml_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__ExecuteBatchDml_705673bfbb22749846b5ab424c32ea33(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *inMemSpannerServer) Read(ctx context.Context, req *spannerpb.ReadRequest) (*spannerpb.ResultSet, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Read_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__Read_705673bfbb22749846b5ab424c32ea33(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *inMemSpannerServer) StreamingRead(req *spannerpb.ReadRequest, stream spannerpb.Spanner_StreamingReadServer) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__StreamingRead_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", req, stream)
+	r0 := s.gologoo__StreamingRead_705673bfbb22749846b5ab424c32ea33(req, stream)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (s *inMemSpannerServer) BeginTransaction(ctx context.Context, req *spannerpb.BeginTransactionRequest) (*spannerpb.Transaction, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__BeginTransaction_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__BeginTransaction_705673bfbb22749846b5ab424c32ea33(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *inMemSpannerServer) Commit(ctx context.Context, req *spannerpb.CommitRequest) (*spannerpb.CommitResponse, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Commit_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__Commit_705673bfbb22749846b5ab424c32ea33(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *inMemSpannerServer) Rollback(ctx context.Context, req *spannerpb.RollbackRequest) (*emptypb.Empty, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Rollback_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__Rollback_705673bfbb22749846b5ab424c32ea33(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *inMemSpannerServer) PartitionQuery(ctx context.Context, req *spannerpb.PartitionQueryRequest) (*spannerpb.PartitionResponse, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__PartitionQuery_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__PartitionQuery_705673bfbb22749846b5ab424c32ea33(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (s *inMemSpannerServer) PartitionRead(ctx context.Context, req *spannerpb.PartitionReadRequest) (*spannerpb.PartitionResponse, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__PartitionRead_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v %v\n", ctx, req)
+	r0, r1 := s.gologoo__PartitionRead_705673bfbb22749846b5ab424c32ea33(ctx, req)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func EncodeResumeToken(t uint64) []byte {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__EncodeResumeToken_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", t)
+	r0 := gologoo__EncodeResumeToken_705673bfbb22749846b5ab424c32ea33(t)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func DecodeResumeToken(t []byte) (uint64, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__DecodeResumeToken_705673bfbb22749846b5ab424c32ea33")
+	log.Printf("Input : %v\n", t)
+	r0, r1 := gologoo__DecodeResumeToken_705673bfbb22749846b5ab424c32ea33(t)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
 }

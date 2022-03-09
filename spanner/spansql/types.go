@@ -1,22 +1,4 @@
-/*
-Copyright 2019 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package spansql
-
-// This file holds the type definitions for the SQL dialect.
 
 import (
 	"fmt"
@@ -24,14 +6,10 @@ import (
 	"sort"
 	"strings"
 	"time"
-
 	"cloud.google.com/go/civil"
+	"log"
 )
 
-// TODO: More Position fields throughout; maybe in Query/Select.
-
-// CreateTable represents a CREATE TABLE statement.
-// https://cloud.google.com/spanner/docs/data-definition-language#create_table
 type CreateTable struct {
 	Name              ID
 	Columns           []ColumnDef
@@ -39,35 +17,37 @@ type CreateTable struct {
 	PrimaryKey        []KeyPart
 	Interleave        *Interleave
 	RowDeletionPolicy *RowDeletionPolicy
-
-	Position Position // position of the "CREATE" token
+	Position          Position
 }
 
-func (ct *CreateTable) String() string { return fmt.Sprintf("%#v", ct) }
-func (*CreateTable) isDDLStmt()        {}
-func (ct *CreateTable) Pos() Position  { return ct.Position }
-func (ct *CreateTable) clearOffset() {
+func (ct *CreateTable) gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32() string {
+	return fmt.Sprintf("%#v", ct)
+}
+func (*CreateTable) gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (ct *CreateTable) gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32() Position {
+	return ct.Position
+}
+func (ct *CreateTable) gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32() {
 	for i := range ct.Columns {
-		// Mutate in place.
 		ct.Columns[i].clearOffset()
 	}
 	for i := range ct.Constraints {
-		// Mutate in place.
 		ct.Constraints[i].clearOffset()
 	}
 	ct.Position.Offset = 0
 }
 
-// TableConstraint represents a constraint on a table.
 type TableConstraint struct {
-	Name       ID // may be empty
+	Name       ID
 	Constraint Constraint
-
-	Position Position // position of the "CONSTRAINT" token, or Constraint.Pos()
+	Position   Position
 }
 
-func (tc TableConstraint) Pos() Position { return tc.Position }
-func (tc *TableConstraint) clearOffset() {
+func (tc TableConstraint) gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32() Position {
+	return tc.Position
+}
+func (tc *TableConstraint) gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32() {
 	switch c := tc.Constraint.(type) {
 	case ForeignKey:
 		c.clearOffset()
@@ -84,107 +64,122 @@ type Constraint interface {
 	SQL() string
 	Node
 }
-
-// Interleave represents an interleave clause of a CREATE TABLE statement.
 type Interleave struct {
 	Parent   ID
 	OnDelete OnDelete
 }
-
-// RowDeletionPolicy represents an row deletion policy clause of a CREATE, ALTER TABLE statement.
 type RowDeletionPolicy struct {
 	Column  ID
 	NumDays int64
 }
-
-// CreateIndex represents a CREATE INDEX statement.
-// https://cloud.google.com/spanner/docs/data-definition-language#create-index
 type CreateIndex struct {
-	Name    ID
-	Table   ID
-	Columns []KeyPart
-
+	Name         ID
+	Table        ID
+	Columns      []KeyPart
 	Unique       bool
 	NullFiltered bool
-
-	Storing    []ID
-	Interleave ID
-
-	Position Position // position of the "CREATE" token
+	Storing      []ID
+	Interleave   ID
+	Position     Position
 }
 
-func (ci *CreateIndex) String() string { return fmt.Sprintf("%#v", ci) }
-func (*CreateIndex) isDDLStmt()        {}
-func (ci *CreateIndex) Pos() Position  { return ci.Position }
-func (ci *CreateIndex) clearOffset()   { ci.Position.Offset = 0 }
+func (ci *CreateIndex) gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32() string {
+	return fmt.Sprintf("%#v", ci)
+}
+func (*CreateIndex) gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (ci *CreateIndex) gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32() Position {
+	return ci.Position
+}
+func (ci *CreateIndex) gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32() {
+	ci.Position.Offset = 0
+}
 
-// CreateView represents a CREATE [OR REPLACE] VIEW statement.
-// https://cloud.google.com/spanner/docs/data-definition-language#view_statements
 type CreateView struct {
 	Name      ID
 	OrReplace bool
 	Query     Query
-
-	Position Position // position of the "CREATE" token
+	Position  Position
 }
 
-func (cv *CreateView) String() string { return fmt.Sprintf("%#v", cv) }
-func (*CreateView) isDDLStmt()        {}
-func (cv *CreateView) Pos() Position  { return cv.Position }
-func (cv *CreateView) clearOffset()   { cv.Position.Offset = 0 }
+func (cv *CreateView) gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32() string {
+	return fmt.Sprintf("%#v", cv)
+}
+func (*CreateView) gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (cv *CreateView) gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32() Position {
+	return cv.Position
+}
+func (cv *CreateView) gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32() {
+	cv.Position.Offset = 0
+}
 
-// DropTable represents a DROP TABLE statement.
-// https://cloud.google.com/spanner/docs/data-definition-language#drop_table
 type DropTable struct {
-	Name ID
-
-	Position Position // position of the "DROP" token
+	Name     ID
+	Position Position
 }
 
-func (dt *DropTable) String() string { return fmt.Sprintf("%#v", dt) }
-func (*DropTable) isDDLStmt()        {}
-func (dt *DropTable) Pos() Position  { return dt.Position }
-func (dt *DropTable) clearOffset()   { dt.Position.Offset = 0 }
+func (dt *DropTable) gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32() string {
+	return fmt.Sprintf("%#v", dt)
+}
+func (*DropTable) gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (dt *DropTable) gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32() Position {
+	return dt.Position
+}
+func (dt *DropTable) gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32() {
+	dt.Position.Offset = 0
+}
 
-// DropIndex represents a DROP INDEX statement.
-// https://cloud.google.com/spanner/docs/data-definition-language#drop-index
 type DropIndex struct {
-	Name ID
-
-	Position Position // position of the "DROP" token
+	Name     ID
+	Position Position
 }
 
-func (di *DropIndex) String() string { return fmt.Sprintf("%#v", di) }
-func (*DropIndex) isDDLStmt()        {}
-func (di *DropIndex) Pos() Position  { return di.Position }
-func (di *DropIndex) clearOffset()   { di.Position.Offset = 0 }
+func (di *DropIndex) gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32() string {
+	return fmt.Sprintf("%#v", di)
+}
+func (*DropIndex) gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (di *DropIndex) gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32() Position {
+	return di.Position
+}
+func (di *DropIndex) gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32() {
+	di.Position.Offset = 0
+}
 
-// DropView represents a DROP VIEW statement.
-// https://cloud.google.com/spanner/docs/data-definition-language#drop-view
 type DropView struct {
-	Name ID
-
-	Position Position // position of the "DROP" token
+	Name     ID
+	Position Position
 }
 
-func (dv *DropView) String() string { return fmt.Sprintf("%#v", dv) }
-func (*DropView) isDDLStmt()        {}
-func (dv *DropView) Pos() Position  { return dv.Position }
-func (dv *DropView) clearOffset()   { dv.Position.Offset = 0 }
+func (dv *DropView) gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32() string {
+	return fmt.Sprintf("%#v", dv)
+}
+func (*DropView) gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (dv *DropView) gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32() Position {
+	return dv.Position
+}
+func (dv *DropView) gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32() {
+	dv.Position.Offset = 0
+}
 
-// AlterTable represents an ALTER TABLE statement.
-// https://cloud.google.com/spanner/docs/data-definition-language#alter_table
 type AlterTable struct {
 	Name       ID
 	Alteration TableAlteration
-
-	Position Position // position of the "ALTER" token
+	Position   Position
 }
 
-func (at *AlterTable) String() string { return fmt.Sprintf("%#v", at) }
-func (*AlterTable) isDDLStmt()        {}
-func (at *AlterTable) Pos() Position  { return at.Position }
-func (at *AlterTable) clearOffset() {
+func (at *AlterTable) gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32() string {
+	return fmt.Sprintf("%#v", at)
+}
+func (*AlterTable) gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (at *AlterTable) gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32() Position {
+	return at.Position
+}
+func (at *AlterTable) gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32() {
 	switch alt := at.Alteration.(type) {
 	case AddColumn:
 		alt.Def.clearOffset()
@@ -196,53 +191,74 @@ func (at *AlterTable) clearOffset() {
 	at.Position.Offset = 0
 }
 
-// TableAlteration is satisfied by AddColumn, DropColumn, AddConstraint,
-// DropConstraint, SetOnDelete and AlterColumn,
-// AddRowDeletionPolicy, ReplaceRowDeletionPolicy, DropRowDeletionPolicy.
 type TableAlteration interface {
 	isTableAlteration()
 	SQL() string
 }
 
-func (AddColumn) isTableAlteration()                {}
-func (DropColumn) isTableAlteration()               {}
-func (AddConstraint) isTableAlteration()            {}
-func (DropConstraint) isTableAlteration()           {}
-func (SetOnDelete) isTableAlteration()              {}
-func (AlterColumn) isTableAlteration()              {}
-func (AddRowDeletionPolicy) isTableAlteration()     {}
-func (ReplaceRowDeletionPolicy) isTableAlteration() {}
-func (DropRowDeletionPolicy) isTableAlteration()    {}
+func (AddColumn) gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (DropColumn) gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (AddConstraint) gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (DropConstraint) gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (SetOnDelete) gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (AlterColumn) gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (AddRowDeletionPolicy) gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (ReplaceRowDeletionPolicy) gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (DropRowDeletionPolicy) gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
-type AddColumn struct{ Def ColumnDef }
-type DropColumn struct{ Name ID }
-type AddConstraint struct{ Constraint TableConstraint }
-type DropConstraint struct{ Name ID }
-type SetOnDelete struct{ Action OnDelete }
+type AddColumn struct {
+	Def ColumnDef
+}
+type DropColumn struct {
+	Name ID
+}
+type AddConstraint struct {
+	Constraint TableConstraint
+}
+type DropConstraint struct {
+	Name ID
+}
+type SetOnDelete struct {
+	Action OnDelete
+}
 type AlterColumn struct {
 	Name       ID
 	Alteration ColumnAlteration
 }
-type AddRowDeletionPolicy struct{ RowDeletionPolicy RowDeletionPolicy }
-type ReplaceRowDeletionPolicy struct{ RowDeletionPolicy RowDeletionPolicy }
-type DropRowDeletionPolicy struct{}
-
-// ColumnAlteration is satisfied by SetColumnType and SetColumnOptions.
+type AddRowDeletionPolicy struct {
+	RowDeletionPolicy RowDeletionPolicy
+}
+type ReplaceRowDeletionPolicy struct {
+	RowDeletionPolicy RowDeletionPolicy
+}
+type DropRowDeletionPolicy struct {
+}
 type ColumnAlteration interface {
 	isColumnAlteration()
 	SQL() string
 }
 
-func (SetColumnType) isColumnAlteration()    {}
-func (SetColumnOptions) isColumnAlteration() {}
+func (SetColumnType) gologoo__isColumnAlteration_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (SetColumnOptions) gologoo__isColumnAlteration_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
 type SetColumnType struct {
 	Type    Type
 	NotNull bool
 }
-
-type SetColumnOptions struct{ Options ColumnOptions }
-
+type SetColumnOptions struct {
+	Options ColumnOptions
+}
 type OnDelete int
 
 const (
@@ -250,130 +266,122 @@ const (
 	CascadeOnDelete
 )
 
-// AlterDatabase represents an ALTER DATABASE statement.
-// https://cloud.google.com/spanner/docs/data-definition-language#alter-database
 type AlterDatabase struct {
 	Name       ID
 	Alteration DatabaseAlteration
-
-	Position Position // position of the "ALTER" token
+	Position   Position
 }
 
-func (ad *AlterDatabase) String() string { return fmt.Sprintf("%#v", ad) }
-func (*AlterDatabase) isDDLStmt()        {}
-func (ad *AlterDatabase) Pos() Position  { return ad.Position }
-func (ad *AlterDatabase) clearOffset()   { ad.Position.Offset = 0 }
+func (ad *AlterDatabase) gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32() string {
+	return fmt.Sprintf("%#v", ad)
+}
+func (*AlterDatabase) gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (ad *AlterDatabase) gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32() Position {
+	return ad.Position
+}
+func (ad *AlterDatabase) gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32() {
+	ad.Position.Offset = 0
+}
 
 type DatabaseAlteration interface {
 	isDatabaseAlteration()
 	SQL() string
 }
+type SetDatabaseOptions struct {
+	Options DatabaseOptions
+}
 
-type SetDatabaseOptions struct{ Options DatabaseOptions }
+func (SetDatabaseOptions) gologoo__isDatabaseAlteration_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
-func (SetDatabaseOptions) isDatabaseAlteration() {}
-
-// DatabaseOptions represents options on a database as part of a
-// ALTER DATABASE statement.
 type DatabaseOptions struct {
 	OptimizerVersion       *int
 	VersionRetentionPeriod *string
 	EnableKeyVisualizer    *bool
 }
-
-// Delete represents a DELETE statement.
-// https://cloud.google.com/spanner/docs/dml-syntax#delete-statement
 type Delete struct {
 	Table ID
 	Where BoolExpr
-
-	// TODO: Alias
 }
 
-func (d *Delete) String() string { return fmt.Sprintf("%#v", d) }
-func (*Delete) isDMLStmt()       {}
+func (d *Delete) gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32() string {
+	return fmt.Sprintf("%#v", d)
+}
+func (*Delete) gologoo__isDMLStmt_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
-// TODO: Insert.
-
-// Update represents an UPDATE statement.
-// https://cloud.google.com/spanner/docs/dml-syntax#update-statement
 type Update struct {
 	Table ID
 	Items []UpdateItem
 	Where BoolExpr
-
-	// TODO: Alias
 }
 
-func (u *Update) String() string { return fmt.Sprintf("%#v", u) }
-func (*Update) isDMLStmt()       {}
+func (u *Update) gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32() string {
+	return fmt.Sprintf("%#v", u)
+}
+func (*Update) gologoo__isDMLStmt_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
 type UpdateItem struct {
 	Column ID
-	Value  Expr // or nil for DEFAULT
+	Value  Expr
 }
-
-// ColumnDef represents a column definition as part of a CREATE TABLE
-// or ALTER TABLE statement.
 type ColumnDef struct {
-	Name    ID
-	Type    Type
-	NotNull bool
-
-	Generated Expr // set of this is a generated column
-
-	Options ColumnOptions
-
-	Position Position // position of the column name
+	Name      ID
+	Type      Type
+	NotNull   bool
+	Generated Expr
+	Options   ColumnOptions
+	Position  Position
 }
 
-func (cd ColumnDef) Pos() Position { return cd.Position }
-func (cd *ColumnDef) clearOffset() { cd.Position.Offset = 0 }
+func (cd ColumnDef) gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32() Position {
+	return cd.Position
+}
+func (cd *ColumnDef) gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32() {
+	cd.Position.Offset = 0
+}
 
-// ColumnOptions represents options on a column as part of a
-// CREATE TABLE or ALTER TABLE statement.
 type ColumnOptions struct {
-	// AllowCommitTimestamp represents a column OPTIONS.
-	// `true` if query is `OPTIONS (allow_commit_timestamp = true)`
-	// `false` if query is `OPTIONS (allow_commit_timestamp = null)`
-	// `nil` if there are no OPTIONS
 	AllowCommitTimestamp *bool
 }
-
-// ForeignKey represents a foreign key definition as part of a CREATE TABLE
-// or ALTER TABLE statement.
 type ForeignKey struct {
 	Columns    []ID
 	RefTable   ID
 	RefColumns []ID
-
-	Position Position // position of the "FOREIGN" token
+	Position   Position
 }
 
-func (fk ForeignKey) Pos() Position { return fk.Position }
-func (fk *ForeignKey) clearOffset() { fk.Position.Offset = 0 }
-func (ForeignKey) isConstraint()    {}
+func (fk ForeignKey) gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32() Position {
+	return fk.Position
+}
+func (fk *ForeignKey) gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32() {
+	fk.Position.Offset = 0
+}
+func (ForeignKey) gologoo__isConstraint_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
-// Check represents a check constraint as part of a CREATE TABLE
-// or ALTER TABLE statement.
 type Check struct {
-	Expr BoolExpr
-
-	Position Position // position of the "CHECK" token
+	Expr     BoolExpr
+	Position Position
 }
 
-func (c Check) Pos() Position { return c.Position }
-func (c *Check) clearOffset() { c.Position.Offset = 0 }
-func (Check) isConstraint()   {}
+func (c Check) gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32() Position {
+	return c.Position
+}
+func (c *Check) gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32() {
+	c.Position.Offset = 0
+}
+func (Check) gologoo__isConstraint_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
-// Type represents a column type.
 type Type struct {
 	Array bool
-	Base  TypeBase // Bool, Int64, Float64, Numeric, String, Bytes, Date, Timestamp
-	Len   int64    // if Base is String or Bytes; may be MaxLen
+	Base  TypeBase
+	Len   int64
 }
 
-// MaxLen is a sentinel for Type's Len field, representing the MAX value.
 const MaxLen = math.MaxInt64
 
 type TypeBase int
@@ -390,75 +398,47 @@ const (
 	JSON
 )
 
-// KeyPart represents a column specification as part of a primary key or index definition.
 type KeyPart struct {
 	Column ID
 	Desc   bool
 }
-
-// Query represents a query statement.
-// https://cloud.google.com/spanner/docs/query-syntax#sql-syntax
 type Query struct {
-	Select Select
-	Order  []Order
-
+	Select        Select
+	Order         []Order
 	Limit, Offset LiteralOrParam
 }
-
-// Select represents a SELECT statement.
-// https://cloud.google.com/spanner/docs/query-syntax#select-list
 type Select struct {
-	Distinct bool
-	List     []Expr
-	From     []SelectFrom
-	Where    BoolExpr
-	GroupBy  []Expr
-	// TODO: Having
-
-	// When the FROM clause has TABLESAMPLE operators,
-	// TableSamples will be populated 1:1 with From;
-	// FROM clauses without will have a nil value.
+	Distinct     bool
+	List         []Expr
+	From         []SelectFrom
+	Where        BoolExpr
+	GroupBy      []Expr
 	TableSamples []*TableSample
-
-	// If the SELECT list has explicit aliases ("AS alias"),
-	// ListAliases will be populated 1:1 with List;
-	// aliases that are present will be non-empty.
-	ListAliases []ID
+	ListAliases  []ID
 }
-
-// SelectFrom represents the FROM clause of a SELECT.
-// https://cloud.google.com/spanner/docs/query-syntax#from_clause
 type SelectFrom interface {
 	isSelectFrom()
 	SQL() string
 }
-
-// SelectFromTable is a SelectFrom that specifies a table to read from.
 type SelectFromTable struct {
 	Table ID
-	Alias ID // empty if not aliased
+	Alias ID
 	Hints map[string]string
 }
 
-func (SelectFromTable) isSelectFrom() {}
+func (SelectFromTable) gologoo__isSelectFrom_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
-// SelectFromJoin is a SelectFrom that joins two other SelectFroms.
-// https://cloud.google.com/spanner/docs/query-syntax#join_types
 type SelectFromJoin struct {
 	Type     JoinType
 	LHS, RHS SelectFrom
-
-	// Join condition.
-	// At most one of {On,Using} may be set.
-	On    BoolExpr
-	Using []ID
-
-	// Hints are suggestions for how to evaluate a join.
-	// https://cloud.google.com/spanner/docs/query-syntax#join-hints
-	Hints map[string]string
+	On       BoolExpr
+	Using    []ID
+	Hints    map[string]string
 }
 
-func (SelectFromJoin) isSelectFrom() {}
+func (SelectFromJoin) gologoo__isSelectFrom_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
 type JoinType int
 
@@ -470,30 +450,23 @@ const (
 	RightJoin
 )
 
-// SelectFromUnnest is a SelectFrom that yields a virtual table from an array.
-// https://cloud.google.com/spanner/docs/query-syntax#unnest
 type SelectFromUnnest struct {
 	Expr  Expr
-	Alias ID // empty if not aliased
-
-	// TODO: Implicit
+	Alias ID
 }
 
-func (SelectFromUnnest) isSelectFrom() {}
-
-// TODO: SelectFromSubquery, etc.
+func (SelectFromUnnest) gologoo__isSelectFrom_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
 type Order struct {
 	Expr Expr
 	Desc bool
 }
-
 type TableSample struct {
 	Method   TableSampleMethod
 	Size     Expr
 	SizeType TableSampleSizeType
 }
-
 type TableSampleMethod int
 
 const (
@@ -512,51 +485,50 @@ type BoolExpr interface {
 	isBoolExpr()
 	Expr
 }
-
 type Expr interface {
 	isExpr()
 	SQL() string
 	addSQL(*strings.Builder)
 }
-
-// LiteralOrParam is implemented by integer literal and parameter values.
 type LiteralOrParam interface {
 	isLiteralOrParam()
 	SQL() string
 }
-
 type ArithOp struct {
 	Op       ArithOperator
-	LHS, RHS Expr // only RHS is set for Neg, Plus, BitNot
+	LHS, RHS Expr
 }
 
-func (ArithOp) isExpr() {}
+func (ArithOp) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
 type ArithOperator int
 
 const (
-	Neg    ArithOperator = iota // unary -
-	Plus                        // unary +
-	BitNot                      // unary ~
-	Mul                         // *
-	Div                         // /
-	Concat                      // ||
-	Add                         // +
-	Sub                         // -
-	BitShl                      // <<
-	BitShr                      // >>
-	BitAnd                      // &
-	BitXor                      // ^
-	BitOr                       // |
+	Neg ArithOperator = iota
+	Plus
+	BitNot
+	Mul
+	Div
+	Concat
+	Add
+	Sub
+	BitShl
+	BitShr
+	BitAnd
+	BitXor
+	BitOr
 )
 
 type LogicalOp struct {
 	Op       LogicalOperator
-	LHS, RHS BoolExpr // only RHS is set for Not
+	LHS, RHS BoolExpr
 }
 
-func (LogicalOp) isBoolExpr() {}
-func (LogicalOp) isExpr()     {}
+func (LogicalOp) gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (LogicalOp) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
 type LogicalOperator int
 
@@ -569,14 +541,13 @@ const (
 type ComparisonOp struct {
 	Op       ComparisonOperator
 	LHS, RHS Expr
-
-	// RHS2 is the third operand for BETWEEN.
-	// "<LHS> BETWEEN <RHS> AND <RHS2>".
-	RHS2 Expr
+	RHS2     Expr
 }
 
-func (ComparisonOp) isBoolExpr() {}
-func (ComparisonOp) isExpr()     {}
+func (ComparisonOp) gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (ComparisonOp) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
 type ComparisonOperator int
 
@@ -586,7 +557,7 @@ const (
 	Gt
 	Ge
 	Eq
-	Ne // both "!=" and "<>"
+	Ne
 	Like
 	NotLike
 	Between
@@ -598,12 +569,12 @@ type InOp struct {
 	Neg    bool
 	RHS    []Expr
 	Unnest bool
-
-	// TODO: support subquery form
 }
 
-func (InOp) isBoolExpr() {} // usually
-func (InOp) isExpr()     {}
+func (InOp) gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (InOp) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
 type IsOp struct {
 	LHS Expr
@@ -611,41 +582,39 @@ type IsOp struct {
 	RHS IsExpr
 }
 
-func (IsOp) isBoolExpr() {}
-func (IsOp) isExpr()     {}
+func (IsOp) gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (IsOp) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
 type IsExpr interface {
 	isIsExpr()
 	Expr
 }
-
-// PathExp represents a path expression.
-//
-// The grammar for path expressions is not defined (see b/169017423 internally),
-// so this captures the most common form only, namely a dotted sequence of identifiers.
 type PathExp []ID
 
-func (PathExp) isExpr() {}
-
-// Func represents a function call.
-type Func struct {
-	Name string // not ID
-	Args []Expr
-
-	// TODO: various functions permit as-expressions, which might warrant different types in here.
+func (PathExp) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
 }
 
-func (Func) isBoolExpr() {} // possibly bool
-func (Func) isExpr()     {}
+type Func struct {
+	Name string
+	Args []Expr
+}
 
-// TypedExpr represents a typed expression in the form `expr AS type_name`, e.g. `'17' AS INT64`.
+func (Func) gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (Func) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+
 type TypedExpr struct {
 	Type Type
 	Expr Expr
 }
 
-func (TypedExpr) isBoolExpr() {} // possibly bool
-func (TypedExpr) isExpr()     {}
+func (TypedExpr) gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (TypedExpr) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
 type ExtractExpr struct {
 	Part string
@@ -653,8 +622,10 @@ type ExtractExpr struct {
 	Expr Expr
 }
 
-func (ExtractExpr) isBoolExpr() {} // possibly bool
-func (ExtractExpr) isExpr()     {}
+func (ExtractExpr) gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (ExtractExpr) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
 type AtTimeZoneExpr struct {
 	Expr Expr
@@ -662,35 +633,40 @@ type AtTimeZoneExpr struct {
 	Zone string
 }
 
-func (AtTimeZoneExpr) isBoolExpr() {} // possibly bool
-func (AtTimeZoneExpr) isExpr()     {}
+func (AtTimeZoneExpr) gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (AtTimeZoneExpr) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
-// Paren represents a parenthesised expression.
 type Paren struct {
 	Expr Expr
 }
 
-func (Paren) isBoolExpr() {} // possibly bool
-func (Paren) isExpr()     {}
+func (Paren) gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (Paren) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
-// Array represents an array literal.
 type Array []Expr
 
-func (Array) isExpr() {}
+func (Array) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
-// ID represents an identifier.
-// https://cloud.google.com/spanner/docs/lexical#identifiers
 type ID string
 
-func (ID) isBoolExpr() {} // possibly bool
-func (ID) isExpr()     {}
+func (ID) gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (ID) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
-// Param represents a query parameter.
 type Param string
 
-func (Param) isBoolExpr()       {} // possibly bool
-func (Param) isExpr()           {}
-func (Param) isLiteralOrParam() {}
+func (Param) gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (Param) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (Param) gologoo__isLiteralOrParam_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
 type BoolLiteral bool
 
@@ -699,74 +675,68 @@ const (
 	False = BoolLiteral(false)
 )
 
-func (BoolLiteral) isBoolExpr() {}
-func (BoolLiteral) isIsExpr()   {}
-func (BoolLiteral) isExpr()     {}
+func (BoolLiteral) gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (BoolLiteral) gologoo__isIsExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (BoolLiteral) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
 type NullLiteral int
 
 const Null = NullLiteral(0)
 
-func (NullLiteral) isIsExpr() {}
-func (NullLiteral) isExpr()   {}
+func (NullLiteral) gologoo__isIsExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (NullLiteral) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
-// IntegerLiteral represents an integer literal.
-// https://cloud.google.com/spanner/docs/lexical#integer-literals
 type IntegerLiteral int64
 
-func (IntegerLiteral) isLiteralOrParam() {}
-func (IntegerLiteral) isExpr()           {}
+func (IntegerLiteral) gologoo__isLiteralOrParam_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
+func (IntegerLiteral) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
-// FloatLiteral represents a floating point literal.
-// https://cloud.google.com/spanner/docs/lexical#floating-point-literals
 type FloatLiteral float64
 
-func (FloatLiteral) isExpr() {}
+func (FloatLiteral) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
-// StringLiteral represents a string literal.
-// https://cloud.google.com/spanner/docs/lexical#string-and-bytes-literals
 type StringLiteral string
 
-func (StringLiteral) isExpr() {}
+func (StringLiteral) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
-// BytesLiteral represents a bytes literal.
-// https://cloud.google.com/spanner/docs/lexical#string-and-bytes-literals
 type BytesLiteral string
 
-func (BytesLiteral) isExpr() {}
+func (BytesLiteral) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
-// DateLiteral represents a date literal.
-// https://cloud.google.com/spanner/docs/lexical#date_literals
 type DateLiteral civil.Date
 
-func (DateLiteral) isExpr() {}
+func (DateLiteral) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
-// TimestampLiteral represents a timestamp literal.
-// https://cloud.google.com/spanner/docs/lexical#timestamp_literals
 type TimestampLiteral time.Time
 
-func (TimestampLiteral) isExpr() {}
+func (TimestampLiteral) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
+}
 
 type StarExpr int
 
-// Star represents a "*" in an expression.
 const Star = StarExpr(0)
 
-func (StarExpr) isExpr() {}
-
-// DDL
-// https://cloud.google.com/spanner/docs/data-definition-language#ddl_syntax
-
-// DDL represents a Data Definition Language (DDL) file.
-type DDL struct {
-	List []DDLStmt
-
-	Filename string // if known at parse time
-
-	Comments []*Comment // all comments, sorted by position
+func (StarExpr) gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32() {
 }
 
-func (d *DDL) clearOffset() {
+type DDL struct {
+	List     []DDLStmt
+	Filename string
+	Comments []*Comment
+}
+
+func (d *DDL) gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32() {
 	for _, stmt := range d.List {
 		stmt.clearOffset()
 	}
@@ -775,62 +745,51 @@ func (d *DDL) clearOffset() {
 	}
 }
 
-// DDLStmt is satisfied by a type that can appear in a DDL.
 type DDLStmt interface {
 	isDDLStmt()
 	clearOffset()
 	SQL() string
 	Node
 }
-
-// DMLStmt is satisfied by a type that is a DML statement.
 type DMLStmt interface {
 	isDMLStmt()
 	SQL() string
 }
-
-// Comment represents a comment.
 type Comment struct {
-	Marker   string // Opening marker; one of "#", "--", "/*".
-	Isolated bool   // Whether this comment is on its own line.
-	// Start and End are the position of the opening and terminating marker.
+	Marker     string
+	Isolated   bool
 	Start, End Position
 	Text       []string
 }
 
-func (c *Comment) String() string { return fmt.Sprintf("%#v", c) }
-func (c *Comment) Pos() Position  { return c.Start }
-func (c *Comment) clearOffset()   { c.Start.Offset, c.End.Offset = 0, 0 }
+func (c *Comment) gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32() string {
+	return fmt.Sprintf("%#v", c)
+}
+func (c *Comment) gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32() Position {
+	return c.Start
+}
+func (c *Comment) gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32() {
+	c.Start.Offset, c.End.Offset = 0, 0
+}
 
-// Node is implemented by concrete types in this package that represent things
-// appearing in a DDL file.
 type Node interface {
 	Pos() Position
-	// clearOffset() is not included here because some types like ColumnDef
-	// have the method on their pointer type rather than their natural value type.
-	// This method is only invoked from within this package, so it isn't
-	// important to enforce such things.
 }
-
-// Position describes a source position in an input DDL file.
-// It is only valid if the line number is positive.
 type Position struct {
-	Line   int // 1-based line number
-	Offset int // 0-based byte offset
+	Line   int
+	Offset int
 }
 
-func (pos Position) IsValid() bool { return pos.Line > 0 }
-func (pos Position) String() string {
+func (pos Position) gologoo__IsValid_9a673e2e5e9cb6f58c17acc311e36f32() bool {
+	return pos.Line > 0
+}
+func (pos Position) gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32() string {
 	if pos.Line == 0 {
 		return ":<invalid>"
 	}
 	return fmt.Sprintf(":%d", pos.Line)
 }
-
-// LeadingComment returns the comment that immediately precedes a node,
-// or nil if there's no such comment.
-func (ddl *DDL) LeadingComment(n Node) *Comment {
-	// Get the comment whose End position is on the previous line.
+func (ddl *DDL) gologoo__LeadingComment_9a673e2e5e9cb6f58c17acc311e36f32(n Node) *Comment {
 	lineEnd := n.Pos().Line - 1
 	ci := sort.Search(len(ddl.Comments), func(i int) bool {
 		return ddl.Comments[i].End.Line >= lineEnd
@@ -839,20 +798,11 @@ func (ddl *DDL) LeadingComment(n Node) *Comment {
 		return nil
 	}
 	if !ddl.Comments[ci].Isolated {
-		// This is an inline comment for a previous node.
 		return nil
 	}
 	return ddl.Comments[ci]
 }
-
-// InlineComment returns the comment on the same line as a node,
-// or nil if there's no inline comment.
-// The returned comment is guaranteed to be a single line.
-func (ddl *DDL) InlineComment(n Node) *Comment {
-	// TODO: Do we care about comments like this?
-	// 	string name = 1; /* foo
-	// 	bar */
-
+func (ddl *DDL) gologoo__InlineComment_9a673e2e5e9cb6f58c17acc311e36f32(n Node) *Comment {
 	pos := n.Pos()
 	ci := sort.Search(len(ddl.Comments), func(i int) bool {
 		return ddl.Comments[i].Start.Line >= pos.Line
@@ -865,8 +815,871 @@ func (ddl *DDL) InlineComment(n Node) *Comment {
 		return nil
 	}
 	if c.Start.Line != c.End.Line || len(c.Text) != 1 {
-		// Multi-line comment; don't return it.
 		return nil
 	}
 	return c
+}
+func (ct *CreateTable) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := ct.gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (recv *CreateTable) isDDLStmt() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (ct *CreateTable) Pos() Position {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := ct.gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (ct *CreateTable) clearOffset() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	ct.gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (tc TableConstraint) Pos() Position {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := tc.gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (tc *TableConstraint) clearOffset() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	tc.gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (ci *CreateIndex) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := ci.gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (recv *CreateIndex) isDDLStmt() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (ci *CreateIndex) Pos() Position {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := ci.gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (ci *CreateIndex) clearOffset() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	ci.gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (cv *CreateView) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := cv.gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (recv *CreateView) isDDLStmt() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (cv *CreateView) Pos() Position {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := cv.gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (cv *CreateView) clearOffset() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	cv.gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (dt *DropTable) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := dt.gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (recv *DropTable) isDDLStmt() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (dt *DropTable) Pos() Position {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := dt.gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (dt *DropTable) clearOffset() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	dt.gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (di *DropIndex) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := di.gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (recv *DropIndex) isDDLStmt() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (di *DropIndex) Pos() Position {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := di.gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (di *DropIndex) clearOffset() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	di.gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (dv *DropView) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := dv.gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (recv *DropView) isDDLStmt() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (dv *DropView) Pos() Position {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := dv.gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (dv *DropView) clearOffset() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	dv.gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (at *AlterTable) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := at.gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (recv *AlterTable) isDDLStmt() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (at *AlterTable) Pos() Position {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := at.gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (at *AlterTable) clearOffset() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	at.gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv AddColumn) isTableAlteration() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv DropColumn) isTableAlteration() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv AddConstraint) isTableAlteration() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv DropConstraint) isTableAlteration() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv SetOnDelete) isTableAlteration() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv AlterColumn) isTableAlteration() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv AddRowDeletionPolicy) isTableAlteration() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv ReplaceRowDeletionPolicy) isTableAlteration() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv DropRowDeletionPolicy) isTableAlteration() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isTableAlteration_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv SetColumnType) isColumnAlteration() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isColumnAlteration_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isColumnAlteration_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv SetColumnOptions) isColumnAlteration() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isColumnAlteration_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isColumnAlteration_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (ad *AlterDatabase) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := ad.gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (recv *AlterDatabase) isDDLStmt() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isDDLStmt_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (ad *AlterDatabase) Pos() Position {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := ad.gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (ad *AlterDatabase) clearOffset() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	ad.gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv SetDatabaseOptions) isDatabaseAlteration() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isDatabaseAlteration_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isDatabaseAlteration_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (d *Delete) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := d.gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (recv *Delete) isDMLStmt() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isDMLStmt_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isDMLStmt_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (u *Update) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := u.gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (recv *Update) isDMLStmt() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isDMLStmt_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isDMLStmt_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (cd ColumnDef) Pos() Position {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := cd.gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (cd *ColumnDef) clearOffset() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	cd.gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (fk ForeignKey) Pos() Position {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := fk.gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (fk *ForeignKey) clearOffset() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	fk.gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv ForeignKey) isConstraint() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isConstraint_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isConstraint_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (c Check) Pos() Position {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := c.gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (c *Check) clearOffset() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	c.gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv Check) isConstraint() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isConstraint_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isConstraint_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv SelectFromTable) isSelectFrom() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isSelectFrom_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isSelectFrom_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv SelectFromJoin) isSelectFrom() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isSelectFrom_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isSelectFrom_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv SelectFromUnnest) isSelectFrom() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isSelectFrom_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isSelectFrom_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv ArithOp) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv LogicalOp) isBoolExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv LogicalOp) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv ComparisonOp) isBoolExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv ComparisonOp) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv InOp) isBoolExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv InOp) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv IsOp) isBoolExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv IsOp) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv PathExp) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv Func) isBoolExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv Func) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv TypedExpr) isBoolExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv TypedExpr) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv ExtractExpr) isBoolExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv ExtractExpr) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv AtTimeZoneExpr) isBoolExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv AtTimeZoneExpr) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv Paren) isBoolExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv Paren) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv Array) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv ID) isBoolExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv ID) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv Param) isBoolExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv Param) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv Param) isLiteralOrParam() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isLiteralOrParam_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isLiteralOrParam_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv BoolLiteral) isBoolExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isBoolExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv BoolLiteral) isIsExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isIsExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isIsExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv BoolLiteral) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv NullLiteral) isIsExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isIsExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isIsExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv NullLiteral) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv IntegerLiteral) isLiteralOrParam() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isLiteralOrParam_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isLiteralOrParam_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv IntegerLiteral) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv FloatLiteral) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv StringLiteral) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv BytesLiteral) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv DateLiteral) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv TimestampLiteral) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv StarExpr) isExpr() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	recv.gologoo__isExpr_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (d *DDL) clearOffset() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	d.gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (c *Comment) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := c.gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (c *Comment) Pos() Position {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := c.gologoo__Pos_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (c *Comment) clearOffset() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	c.gologoo__clearOffset_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (pos Position) IsValid() bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__IsValid_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := pos.gologoo__IsValid_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (pos Position) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : (none)\n")
+	r0 := pos.gologoo__String_9a673e2e5e9cb6f58c17acc311e36f32()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (ddl *DDL) LeadingComment(n Node) *Comment {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__LeadingComment_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : %v\n", n)
+	r0 := ddl.gologoo__LeadingComment_9a673e2e5e9cb6f58c17acc311e36f32(n)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (ddl *DDL) InlineComment(n Node) *Comment {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__InlineComment_9a673e2e5e9cb6f58c17acc311e36f32")
+	log.Printf("Input : %v\n", n)
+	r0 := ddl.gologoo__InlineComment_9a673e2e5e9cb6f58c17acc311e36f32(n)
+	log.Printf("Output: %v\n", r0)
+	return r0
 }

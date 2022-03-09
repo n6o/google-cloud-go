@@ -1,19 +1,3 @@
-/*
-Copyright 2017 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package spanner
 
 import (
@@ -34,79 +18,28 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-// streamingReceiver is the interface for receiving data from a client side
-// stream.
 type streamingReceiver interface {
 	Recv() (*sppb.PartialResultSet, error)
 }
 
-// errEarlyReadEnd returns error for read finishes when gRPC stream is still
-// active.
-func errEarlyReadEnd() error {
+func gologoo__errEarlyReadEnd_7fd4d53bdad5ef404a290eb8dfb05849() error {
 	return spannerErrorf(codes.FailedPrecondition, "read completed with active stream")
 }
-
-// stream is the internal fault tolerant method for streaming data from Cloud
-// Spanner.
-func stream(
-	ctx context.Context,
-	logger *log.Logger,
-	rpc func(ct context.Context, resumeToken []byte) (streamingReceiver, error),
-	setTimestamp func(time.Time),
-	release func(error),
-) *RowIterator {
-	return streamWithReplaceSessionFunc(
-		ctx,
-		logger,
-		rpc,
-		nil,
-		setTimestamp,
-		release,
-	)
+func gologoo__stream_7fd4d53bdad5ef404a290eb8dfb05849(ctx context.Context, logger *log.Logger, rpc func(ct context.Context, resumeToken []byte) (streamingReceiver, error), setTimestamp func(time.Time), release func(error)) *RowIterator {
+	return streamWithReplaceSessionFunc(ctx, logger, rpc, nil, setTimestamp, release)
 }
-
-// this stream method will automatically retry the stream on a new session if
-// the replaceSessionFunc function has been defined. This function should only be
-// used for single-use transactions.
-func streamWithReplaceSessionFunc(
-	ctx context.Context,
-	logger *log.Logger,
-	rpc func(ct context.Context, resumeToken []byte) (streamingReceiver, error),
-	replaceSession func(ctx context.Context) error,
-	setTimestamp func(time.Time),
-	release func(error),
-) *RowIterator {
+func gologoo__streamWithReplaceSessionFunc_7fd4d53bdad5ef404a290eb8dfb05849(ctx context.Context, logger *log.Logger, rpc func(ct context.Context, resumeToken []byte) (streamingReceiver, error), replaceSession func(ctx context.Context) error, setTimestamp func(time.Time), release func(error)) *RowIterator {
 	ctx, cancel := context.WithCancel(ctx)
 	ctx = trace.StartSpan(ctx, "cloud.google.com/go/spanner.RowIterator")
-	return &RowIterator{
-		streamd:      newResumableStreamDecoder(ctx, logger, rpc, replaceSession),
-		rowd:         &partialResultSetDecoder{},
-		setTimestamp: setTimestamp,
-		release:      release,
-		cancel:       cancel,
-	}
+	return &RowIterator{streamd: newResumableStreamDecoder(ctx, logger, rpc, replaceSession), rowd: &partialResultSetDecoder{}, setTimestamp: setTimestamp, release: release, cancel: cancel}
 }
 
-// RowIterator is an iterator over Rows.
 type RowIterator struct {
-	// The plan for the query. Available after RowIterator.Next returns
-	// iterator.Done if QueryWithStats was called.
-	QueryPlan *sppb.QueryPlan
-
-	// Execution statistics for the query. Available after RowIterator.Next
-	// returns iterator.Done if QueryWithStats was called.
-	QueryStats map[string]interface{}
-
-	// For a DML statement, the number of rows affected. For PDML, this is a
-	// lower bound. Available for DML statements after RowIterator.Next returns
-	// iterator.Done.
-	RowCount int64
-
-	// The metadata of the results of the query. The metadata are available
-	// after the first call to RowIterator.Next(), unless the first call to
-	// RowIterator.Next() returned an error that is not equal to iterator.Done.
-	Metadata *sppb.ResultSetMetadata
-
+	QueryPlan  *sppb.QueryPlan
+	QueryStats map[string]interface {
+	}
+	RowCount     int64
+	Metadata     *sppb.ResultSetMetadata
 	streamd      *resumableStreamDecoder
 	rowd         *partialResultSetDecoder
 	setTimestamp func(time.Time)
@@ -117,10 +50,7 @@ type RowIterator struct {
 	sawStats     bool
 }
 
-// Next returns the next result. Its second return value is iterator.Done if
-// there are no more results. Once Next returns Done, all subsequent calls
-// will return Done.
-func (r *RowIterator) Next() (*Row, error) {
+func (r *RowIterator) gologoo__Next_7fd4d53bdad5ef404a290eb8dfb05849() (*Row, error) {
 	if r.err != nil {
 		return nil, r.err
 	}
@@ -165,8 +95,7 @@ func (r *RowIterator) Next() (*Row, error) {
 	}
 	return nil, r.err
 }
-
-func extractRowCount(stats *sppb.ResultSetStats) (int64, error) {
+func gologoo__extractRowCount_7fd4d53bdad5ef404a290eb8dfb05849(stats *sppb.ResultSetStats) (int64, error) {
 	if stats.RowCount == nil {
 		return 0, spannerErrorf(codes.Internal, "missing RowCount")
 	}
@@ -179,16 +108,7 @@ func extractRowCount(stats *sppb.ResultSetStats) (int64, error) {
 		return 0, spannerErrorf(codes.Internal, "unknown RowCount type %T", stats.RowCount)
 	}
 }
-
-// Do calls the provided function once in sequence for each row in the
-// iteration. If the function returns a non-nil error, Do immediately returns
-// that error.
-//
-// If there are no rows in the iterator, Do will return nil without calling the
-// provided function.
-//
-// Do always calls Stop on the iterator.
-func (r *RowIterator) Do(f func(r *Row) error) error {
+func (r *RowIterator) gologoo__Do_7fd4d53bdad5ef404a290eb8dfb05849(f func(r *Row) error) error {
 	defer r.Stop()
 	for {
 		row, err := r.Next()
@@ -204,10 +124,7 @@ func (r *RowIterator) Do(f func(r *Row) error) error {
 		}
 	}
 }
-
-// Stop terminates the iteration. It should be called after you finish using the
-// iterator.
-func (r *RowIterator) Stop() {
+func (r *RowIterator) gologoo__Stop_7fd4d53bdad5ef404a290eb8dfb05849() {
 	if r.streamd != nil {
 		if r.err != nil && r.err != iterator.Done {
 			defer trace.EndSpan(r.streamd.ctx, r.err)
@@ -227,38 +144,28 @@ func (r *RowIterator) Stop() {
 	}
 }
 
-// partialResultQueue implements a simple FIFO queue.  The zero value is a valid
-// queue.
 type partialResultQueue struct {
 	q     []*sppb.PartialResultSet
 	first int
 	last  int
-	n     int // number of elements in queue
+	n     int
 }
 
-// empty returns if the partialResultQueue is empty.
-func (q *partialResultQueue) empty() bool {
+func (q *partialResultQueue) gologoo__empty_7fd4d53bdad5ef404a290eb8dfb05849() bool {
 	return q.n == 0
 }
-
-// errEmptyQueue returns error for dequeuing an empty queue.
-func errEmptyQueue() error {
+func gologoo__errEmptyQueue_7fd4d53bdad5ef404a290eb8dfb05849() error {
 	return spannerErrorf(codes.OutOfRange, "empty partialResultQueue")
 }
-
-// peekLast returns the last item in partialResultQueue; if the queue
-// is empty, it returns error.
-func (q *partialResultQueue) peekLast() (*sppb.PartialResultSet, error) {
+func (q *partialResultQueue) gologoo__peekLast_7fd4d53bdad5ef404a290eb8dfb05849() (*sppb.PartialResultSet, error) {
 	if q.empty() {
 		return nil, errEmptyQueue()
 	}
 	return q.q[(q.last+cap(q.q)-1)%cap(q.q)], nil
 }
-
-// push adds an item to the tail of partialResultQueue.
-func (q *partialResultQueue) push(r *sppb.PartialResultSet) {
+func (q *partialResultQueue) gologoo__push_7fd4d53bdad5ef404a290eb8dfb05849(r *sppb.PartialResultSet) {
 	if q.q == nil {
-		q.q = make([]*sppb.PartialResultSet, 8 /* arbitrary */)
+		q.q = make([]*sppb.PartialResultSet, 8)
 	}
 	if q.n == cap(q.q) {
 		buf := make([]*sppb.PartialResultSet, cap(q.q)*2)
@@ -273,9 +180,7 @@ func (q *partialResultQueue) push(r *sppb.PartialResultSet) {
 	q.last = (q.last + 1) % cap(q.q)
 	q.n++
 }
-
-// pop removes an item from the head of partialResultQueue and returns it.
-func (q *partialResultQueue) pop() *sppb.PartialResultSet {
+func (q *partialResultQueue) gologoo__pop_7fd4d53bdad5ef404a290eb8dfb05849() *sppb.PartialResultSet {
 	if q.n == 0 {
 		return nil
 	}
@@ -285,15 +190,10 @@ func (q *partialResultQueue) pop() *sppb.PartialResultSet {
 	q.n--
 	return r
 }
-
-// clear empties partialResultQueue.
-func (q *partialResultQueue) clear() {
+func (q *partialResultQueue) gologoo__clear_7fd4d53bdad5ef404a290eb8dfb05849() {
 	*q = partialResultQueue{}
 }
-
-// dump retrieves all items from partialResultQueue and return them in a slice.
-// It is used only in tests.
-func (q *partialResultQueue) dump() []*sppb.PartialResultSet {
+func (q *partialResultQueue) gologoo__dump_7fd4d53bdad5ef404a290eb8dfb05849() []*sppb.PartialResultSet {
 	var dq []*sppb.PartialResultSet
 	for i := q.first; len(dq) < q.n; i = (i + 1) % cap(q.q) {
 		dq = append(dq, q.q[i])
@@ -301,100 +201,38 @@ func (q *partialResultQueue) dump() []*sppb.PartialResultSet {
 	return dq
 }
 
-// resumableStreamDecoderState encodes resumableStreamDecoder's status. See also
-// the comments for resumableStreamDecoder.Next.
 type resumableStreamDecoderState int
 
 const (
-	unConnected         resumableStreamDecoderState = iota // 0
-	queueingRetryable                                      // 1
-	queueingUnretryable                                    // 2
-	aborted                                                // 3
-	finished                                               // 4
+	unConnected resumableStreamDecoderState = iota
+	queueingRetryable
+	queueingUnretryable
+	aborted
+	finished
 )
 
-// resumableStreamDecoder provides a resumable interface for receiving
-// sppb.PartialResultSet(s) from a given query wrapped by
-// resumableStreamDecoder.rpc().
 type resumableStreamDecoder struct {
-	// state is the current status of resumableStreamDecoder, see also
-	// the comments for resumableStreamDecoder.Next.
-	state resumableStreamDecoderState
-
-	// stateWitness when non-nil is called to observe state change,
-	// used for testing.
-	stateWitness func(resumableStreamDecoderState)
-
-	// ctx is the caller's context, used for cancel/timeout Next().
-	ctx context.Context
-
-	// rpc is a factory of streamingReceiver, which might resume
-	// a previous stream from the point encoded in restartToken.
-	// rpc is always a wrapper of a Cloud Spanner query which is
-	// resumable.
-	rpc func(ctx context.Context, restartToken []byte) (streamingReceiver, error)
-
-	// replaceSessionFunc is a function that can be used to replace the session
-	// that is being used to execute the read operation. This function should
-	// only be defined for single-use transactions that can safely retry the
-	// read operation on a new session. If this function is nil, the stream
-	// does not support retrying the query on a new session.
-	replaceSessionFunc func(ctx context.Context) error
-
-	// logger is the logger to use.
-	logger *log.Logger
-
-	// stream is the current RPC streaming receiver.
-	stream streamingReceiver
-
-	// q buffers received yet undecoded partial results.
-	q partialResultQueue
-
-	// bytesBetweenResumeTokens is the proxy of the byte size of
-	// PartialResultSets being queued between two resume tokens. Once
-	// bytesBetweenResumeTokens is greater than maxBytesBetweenResumeTokens,
-	// resumableStreamDecoder goes into queueingUnretryable state.
-	bytesBetweenResumeTokens int32
-
-	// maxBytesBetweenResumeTokens is the max number of bytes that can be
-	// buffered between two resume tokens. It is always copied from the global
-	// maxBytesBetweenResumeTokens atomically.
+	state                       resumableStreamDecoderState
+	stateWitness                func(resumableStreamDecoderState)
+	ctx                         context.Context
+	rpc                         func(ctx context.Context, restartToken []byte) (streamingReceiver, error)
+	replaceSessionFunc          func(ctx context.Context) error
+	logger                      *log.Logger
+	stream                      streamingReceiver
+	q                           partialResultQueue
+	bytesBetweenResumeTokens    int32
 	maxBytesBetweenResumeTokens int32
-
-	// np is the next sppb.PartialResultSet ready to be returned
-	// to caller of resumableStreamDecoder.Get().
-	np *sppb.PartialResultSet
-
-	// resumeToken stores the resume token that resumableStreamDecoder has
-	// last revealed to caller.
-	resumeToken []byte
-
-	// err is the last error resumableStreamDecoder has encountered so far.
-	err error
-
-	// backoff is used for the retry settings
-	backoff gax.Backoff
+	np                          *sppb.PartialResultSet
+	resumeToken                 []byte
+	err                         error
+	backoff                     gax.Backoff
 }
 
-// newResumableStreamDecoder creates a new resumeableStreamDecoder instance.
-// Parameter rpc should be a function that creates a new stream beginning at the
-// restartToken if non-nil.
-func newResumableStreamDecoder(ctx context.Context, logger *log.Logger, rpc func(ct context.Context, restartToken []byte) (streamingReceiver, error), replaceSession func(ctx context.Context) error) *resumableStreamDecoder {
-	return &resumableStreamDecoder{
-		ctx:                         ctx,
-		logger:                      logger,
-		rpc:                         rpc,
-		replaceSessionFunc:          replaceSession,
-		maxBytesBetweenResumeTokens: atomic.LoadInt32(&maxBytesBetweenResumeTokens),
-		backoff:                     DefaultRetryBackoff,
-	}
+func gologoo__newResumableStreamDecoder_7fd4d53bdad5ef404a290eb8dfb05849(ctx context.Context, logger *log.Logger, rpc func(ct context.Context, restartToken []byte) (streamingReceiver, error), replaceSession func(ctx context.Context) error) *resumableStreamDecoder {
+	return &resumableStreamDecoder{ctx: ctx, logger: logger, rpc: rpc, replaceSessionFunc: replaceSession, maxBytesBetweenResumeTokens: atomic.LoadInt32(&maxBytesBetweenResumeTokens), backoff: DefaultRetryBackoff}
 }
-
-// changeState fulfills state transition for resumableStateDecoder.
-func (d *resumableStreamDecoder) changeState(target resumableStreamDecoderState) {
+func (d *resumableStreamDecoder) gologoo__changeState_7fd4d53bdad5ef404a290eb8dfb05849(target resumableStreamDecoderState) {
 	if d.state == queueingRetryable && d.state != target {
-		// Reset bytesBetweenResumeTokens because it is only meaningful/changed
-		// under queueingRetryable state.
 		d.bytesBetweenResumeTokens = 0
 	}
 	d.state = target
@@ -402,10 +240,7 @@ func (d *resumableStreamDecoder) changeState(target resumableStreamDecoderState)
 		d.stateWitness(target)
 	}
 }
-
-// isNewResumeToken returns if the observed resume token is different from
-// the one returned from server last time.
-func (d *resumableStreamDecoder) isNewResumeToken(rt []byte) bool {
+func (d *resumableStreamDecoder) gologoo__isNewResumeToken_7fd4d53bdad5ef404a290eb8dfb05849(rt []byte) bool {
 	if rt == nil {
 		return false
 	}
@@ -415,65 +250,13 @@ func (d *resumableStreamDecoder) isNewResumeToken(rt []byte) bool {
 	return true
 }
 
-// Next advances to the next available partial result set.  If error or no
-// more, returns false, call Err to determine if an error was encountered.
-// The following diagram illustrates the state machine of resumableStreamDecoder
-// that Next() implements. Note that state transition can be only triggered by
-// RPC activities.
-/*
-        rpc() fails retryable
-      +---------+
-      |         |    rpc() fails unretryable/ctx timeouts or cancelled
-      |         |   +------------------------------------------------+
-      |         |   |                                                |
-      |         v   |                                                v
-      |     +---+---+---+                       +--------+    +------+--+
-      +-----+unConnected|                       |finished|    | aborted |<----+
-            |           |                       ++-----+-+    +------+--+     |
-            +---+----+--+                        ^     ^             ^        |
-                |    ^                           |     |             |        |
-                |    |                           |     |     recv() fails     |
-                |    |                           |     |             |        |
-                |    |recv() fails retryable     |     |             |        |
-                |    |with valid ctx             |     |             |        |
-                |    |                           |     |             |        |
-      rpc() succeeds |   +-----------------------+     |             |        |
-                |    |   |         recv EOF         recv EOF         |        |
-                |    |   |                             |             |        |
-                v    |   |     Queue size exceeds      |             |        |
-            +---+----+---+----+threshold       +-------+-----------+ |        |
-+---------->+                 +--------------->+                   +-+        |
-|           |queueingRetryable|                |queueingUnretryable|          |
-|           |                 +<---------------+                   |          |
-|           +---+----------+--+ pop() returns  +--+----+-----------+          |
-|               |          |    resume token      |    ^                      |
-|               |          |                      |    |                      |
-|               |          |                      |    |                      |
-+---------------+          |                      |    |                      |
-   recv() succeeds         |                      +----+                      |
-                           |                      recv() succeeds             |
-                           |                                                  |
-                           |                                                  |
-                           |                                                  |
-                           |                                                  |
-                           |                                                  |
-                           +--------------------------------------------------+
-                                               recv() fails unretryable
+var maxBytesBetweenResumeTokens = int32(128 * 1024 * 1024)
 
-*/
-var (
-	// maxBytesBetweenResumeTokens is the maximum amount of bytes that
-	// resumableStreamDecoder in queueingRetryable state can use to queue
-	// PartialResultSets before getting into queueingUnretryable state.
-	maxBytesBetweenResumeTokens = int32(128 * 1024 * 1024)
-)
-
-func (d *resumableStreamDecoder) next() bool {
+func (d *resumableStreamDecoder) gologoo__next_7fd4d53bdad5ef404a290eb8dfb05849() bool {
 	retryer := onCodes(d.backoff, codes.Unavailable, codes.Internal)
 	for {
 		switch d.state {
 		case unConnected:
-			// If no gRPC stream is available, try to initiate one.
 			d.stream, d.err = d.rpc(d.ctx, d.resumeToken)
 			if d.err == nil {
 				d.changeState(queueingRetryable)
@@ -486,37 +269,24 @@ func (d *resumableStreamDecoder) next() bool {
 			}
 			trace.TracePrintf(d.ctx, nil, "Backing off stream read for %s", delay)
 			if err := gax.Sleep(d.ctx, delay); err == nil {
-				// Be explicit about state transition, although the
-				// state doesn't actually change. State transition
-				// will be triggered only by RPC activity, regardless of
-				// whether there is an actual state change or not.
 				d.changeState(unConnected)
 			} else {
 				d.err = err
 				d.changeState(aborted)
 			}
 			continue
-
 		case queueingRetryable:
 			fallthrough
 		case queueingUnretryable:
-			// Receiving queue is not empty.
 			last, err := d.q.peekLast()
 			if err != nil {
-				// Only the case that receiving queue is empty could cause
-				// peekLast to return error and in such case, we should try to
-				// receive from stream.
 				d.tryRecv(retryer)
 				continue
 			}
 			if d.isNewResumeToken(last.ResumeToken) {
-				// Got new resume token, return buffered sppb.PartialResultSets
-				// to caller.
 				d.np = d.q.pop()
 				if d.q.empty() {
 					d.bytesBetweenResumeTokens = 0
-					// The new resume token was just popped out from queue,
-					// record it.
 					d.resumeToken = d.np.ResumeToken
 					d.changeState(queueingRetryable)
 				}
@@ -527,41 +297,27 @@ func (d *resumableStreamDecoder) next() bool {
 				continue
 			}
 			if d.state == queueingUnretryable {
-				// When there is no resume token observed, only yield
-				// sppb.PartialResultSets to caller under queueingUnretryable
-				// state.
 				d.np = d.q.pop()
 				return true
 			}
-			// Needs to receive more from gRPC stream till a new resume token
-			// is observed.
 			d.tryRecv(retryer)
 			continue
 		case aborted:
-			// Discard all pending items because none of them should be yield
-			// to caller.
 			d.q.clear()
 			return false
 		case finished:
-			// If query has finished, check if there are still buffered messages.
 			if d.q.empty() {
-				// No buffered PartialResultSet.
 				return false
 			}
-			// Although query has finished, there are still buffered
-			// PartialResultSets.
 			d.np = d.q.pop()
 			return true
-
 		default:
 			logf(d.logger, "Unexpected resumableStreamDecoder.state: %v", d.state)
 			return false
 		}
 	}
 }
-
-// tryRecv attempts to receive a PartialResultSet from gRPC stream.
-func (d *resumableStreamDecoder) tryRecv(retryer gax.Retryer) {
+func (d *resumableStreamDecoder) gologoo__tryRecv_7fd4d53bdad5ef404a290eb8dfb05849(retryer gax.Retryer) {
 	var res *sppb.PartialResultSet
 	res, d.err = d.stream.Recv()
 	if d.err == nil {
@@ -578,9 +334,6 @@ func (d *resumableStreamDecoder) tryRecv(retryer gax.Retryer) {
 		return
 	}
 	if d.replaceSessionFunc != nil && isSessionNotFoundError(d.err) && d.resumeToken == nil {
-		// A 'Session not found' error occurred before we received a resume
-		// token and a replaceSessionFunc function is defined. Try to restart
-		// the stream on a new session.
 		if err := d.replaceSessionFunc(d.ctx); err != nil {
 			d.err = err
 			d.changeState(aborted)
@@ -598,72 +351,40 @@ func (d *resumableStreamDecoder) tryRecv(retryer gax.Retryer) {
 			return
 		}
 	}
-	// Clear error and retry the stream.
 	d.err = nil
-	// Discard all queue items (none have resume tokens).
 	d.q.clear()
 	d.stream = nil
 	d.changeState(unConnected)
 }
-
-// get returns the most recent PartialResultSet generated by a call to next.
-func (d *resumableStreamDecoder) get() *sppb.PartialResultSet {
+func (d *resumableStreamDecoder) gologoo__get_7fd4d53bdad5ef404a290eb8dfb05849() *sppb.PartialResultSet {
 	return d.np
 }
-
-// lastErr returns the last non-EOF error encountered.
-func (d *resumableStreamDecoder) lastErr() error {
+func (d *resumableStreamDecoder) gologoo__lastErr_7fd4d53bdad5ef404a290eb8dfb05849() error {
 	return d.err
 }
 
-// partialResultSetDecoder assembles PartialResultSet(s) into Cloud Spanner
-// Rows.
 type partialResultSetDecoder struct {
 	row     Row
 	tx      *sppb.Transaction
-	chunked bool // if true, next value should be merged with last values
-	// entry.
-	ts time.Time // read timestamp
+	chunked bool
+	ts      time.Time
 }
 
-// yield checks we have a complete row, and if so returns it.  A row is not
-// complete if it doesn't have enough columns, or if this is a chunked response
-// and there are no further values to process.
-func (p *partialResultSetDecoder) yield(chunked, last bool) *Row {
+func (p *partialResultSetDecoder) gologoo__yield_7fd4d53bdad5ef404a290eb8dfb05849(chunked, last bool) *Row {
 	if len(p.row.vals) == len(p.row.fields) && (!chunked || !last) {
-		// When partialResultSetDecoder gets enough number of Column values.
-		// There are two cases that a new Row should be yield:
-		//
-		//   1. The incoming PartialResultSet is not chunked;
-		//   2. The incoming PartialResultSet is chunked, but the
-		//      proto3.Value being merged is not the last one in
-		//      the PartialResultSet.
-		//
-		// Use a fresh Row to simplify clients that want to use yielded results
-		// after the next row is retrieved. Note that fields is never changed
-		// so it doesn't need to be copied.
-		fresh := Row{
-			fields: p.row.fields,
-			vals:   make([]*proto3.Value, len(p.row.vals)),
-		}
+		fresh := Row{fields: p.row.fields, vals: make([]*proto3.Value, len(p.row.vals))}
 		copy(fresh.vals, p.row.vals)
-		p.row.vals = p.row.vals[:0] // empty and reuse slice
+		p.row.vals = p.row.vals[:0]
 		return &fresh
 	}
 	return nil
 }
-
-// yieldTx returns transaction information via caller supplied callback.
-func errChunkedEmptyRow() error {
+func gologoo__errChunkedEmptyRow_7fd4d53bdad5ef404a290eb8dfb05849() error {
 	return spannerErrorf(codes.FailedPrecondition, "got invalid chunked PartialResultSet with empty Row")
 }
-
-// add tries to merge a new PartialResultSet into buffered Row. It returns any
-// rows that have been completed as a result.
-func (p *partialResultSetDecoder) add(r *sppb.PartialResultSet) ([]*Row, *sppb.ResultSetMetadata, error) {
+func (p *partialResultSetDecoder) gologoo__add_7fd4d53bdad5ef404a290eb8dfb05849(r *sppb.PartialResultSet) ([]*Row, *sppb.ResultSetMetadata, error) {
 	var rows []*Row
 	if r.Metadata != nil {
-		// Metadata should only be returned in the first result.
 		if p.row.fields == nil {
 			p.row.fields = r.Metadata.RowType.Fields
 		}
@@ -679,43 +400,31 @@ func (p *partialResultSetDecoder) add(r *sppb.PartialResultSet) ([]*Row, *sppb.R
 	}
 	if p.chunked {
 		p.chunked = false
-		// Try to merge first value in r.Values into uncompleted row.
 		last := len(p.row.vals) - 1
-		if last < 0 { // confidence check
+		if last < 0 {
 			return nil, nil, errChunkedEmptyRow()
 		}
 		var err error
-		// If p is chunked, then we should always try to merge p.last with
-		// r.first.
 		if p.row.vals[last], err = p.merge(p.row.vals[last], r.Values[0]); err != nil {
 			return nil, r.Metadata, err
 		}
 		r.Values = r.Values[1:]
-		// Merge is done, try to yield a complete Row.
 		if row := p.yield(r.ChunkedValue, len(r.Values) == 0); row != nil {
 			rows = append(rows, row)
 		}
 	}
 	for i, v := range r.Values {
-		// The rest values in r can be appened into p directly.
 		p.row.vals = append(p.row.vals, v)
-		// Again, check to see if a complete Row can be yielded because of the
-		// newly added value.
 		if row := p.yield(r.ChunkedValue, i == len(r.Values)-1); row != nil {
 			rows = append(rows, row)
 		}
 	}
 	if r.ChunkedValue {
-		// After dealing with all values in r, if r is chunked then p must be
-		// also chunked.
 		p.chunked = true
 	}
 	return rows, r.Metadata, nil
 }
-
-// isMergeable returns if a protobuf Value can be potentially merged with other
-// protobuf Values.
-func (p *partialResultSetDecoder) isMergeable(a *proto3.Value) bool {
+func (p *partialResultSetDecoder) gologoo__isMergeable_7fd4d53bdad5ef404a290eb8dfb05849(a *proto3.Value) bool {
 	switch a.Kind.(type) {
 	case *proto3.Value_StringValue:
 		return true
@@ -725,21 +434,13 @@ func (p *partialResultSetDecoder) isMergeable(a *proto3.Value) bool {
 		return false
 	}
 }
-
-// errIncompatibleMergeTypes returns error for incompatible protobuf types that
-// cannot be merged by partialResultSetDecoder.
-func errIncompatibleMergeTypes(a, b *proto3.Value) error {
+func gologoo__errIncompatibleMergeTypes_7fd4d53bdad5ef404a290eb8dfb05849(a, b *proto3.Value) error {
 	return spannerErrorf(codes.FailedPrecondition, "incompatible type in chunked PartialResultSet. expected (%T), got (%T)", a.Kind, b.Kind)
 }
-
-// errUnsupportedMergeType returns error for protobuf type that cannot be merged
-// to other protobufs.
-func errUnsupportedMergeType(a *proto3.Value) error {
+func gologoo__errUnsupportedMergeType_7fd4d53bdad5ef404a290eb8dfb05849(a *proto3.Value) error {
 	return spannerErrorf(codes.FailedPrecondition, "unsupported type merge (%T)", a.Kind)
 }
-
-// merge tries to combine two protobuf Values if possible.
-func (p *partialResultSetDecoder) merge(a, b *proto3.Value) (*proto3.Value, error) {
+func (p *partialResultSetDecoder) gologoo__merge_7fd4d53bdad5ef404a290eb8dfb05849(a, b *proto3.Value) (*proto3.Value, error) {
 	var err error
 	typeErr := errIncompatibleMergeTypes(a, b)
 	switch t := a.Kind.(type) {
@@ -748,50 +449,262 @@ func (p *partialResultSetDecoder) merge(a, b *proto3.Value) (*proto3.Value, erro
 		if !ok {
 			return nil, typeErr
 		}
-		return &proto3.Value{
-			Kind: &proto3.Value_StringValue{StringValue: t.StringValue + s.StringValue},
-		}, nil
+		return &proto3.Value{Kind: &proto3.Value_StringValue{StringValue: t.StringValue + s.StringValue}}, nil
 	case *proto3.Value_ListValue:
 		l, ok := b.Kind.(*proto3.Value_ListValue)
 		if !ok {
 			return nil, typeErr
 		}
 		if l.ListValue == nil || len(l.ListValue.Values) <= 0 {
-			// b is an empty list, just return a.
 			return a, nil
 		}
 		if t.ListValue == nil || len(t.ListValue.Values) <= 0 {
-			// a is an empty list, just return b.
 			return b, nil
 		}
 		if la := len(t.ListValue.Values) - 1; p.isMergeable(t.ListValue.Values[la]) {
-			// When the last item in a is of type String, List or Struct
-			// (encoded into List by Cloud Spanner), try to Merge last item in
-			// a and first item in b.
 			t.ListValue.Values[la], err = p.merge(t.ListValue.Values[la], l.ListValue.Values[0])
 			if err != nil {
 				return nil, err
 			}
 			l.ListValue.Values = l.ListValue.Values[1:]
 		}
-		return &proto3.Value{
-			Kind: &proto3.Value_ListValue{
-				ListValue: &proto3.ListValue{
-					Values: append(t.ListValue.Values, l.ListValue.Values...),
-				},
-			},
-		}, nil
+		return &proto3.Value{Kind: &proto3.Value_ListValue{ListValue: &proto3.ListValue{Values: append(t.ListValue.Values, l.ListValue.Values...)}}}, nil
 	default:
 		return nil, errUnsupportedMergeType(a)
 	}
-
 }
-
-// Done returns if partialResultSetDecoder has already done with all buffered
-// values.
-func (p *partialResultSetDecoder) done() bool {
-	// There is no explicit end of stream marker, but ending part way through a
-	// row is obviously bad, or ending with the last column still awaiting
-	// completion.
+func (p *partialResultSetDecoder) gologoo__done_7fd4d53bdad5ef404a290eb8dfb05849() bool {
 	return len(p.row.vals) == 0 && !p.chunked
+}
+func errEarlyReadEnd() error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errEarlyReadEnd_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : (none)\n")
+	r0 := gologoo__errEarlyReadEnd_7fd4d53bdad5ef404a290eb8dfb05849()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func stream(ctx context.Context, logger *log.Logger, rpc func(ct context.Context, resumeToken []byte) (streamingReceiver, error), setTimestamp func(time.Time), release func(error)) *RowIterator {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__stream_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : %v %v %v %v %v\n", ctx, logger, rpc, setTimestamp, release)
+	r0 := gologoo__stream_7fd4d53bdad5ef404a290eb8dfb05849(ctx, logger, rpc, setTimestamp, release)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func streamWithReplaceSessionFunc(ctx context.Context, logger *log.Logger, rpc func(ct context.Context, resumeToken []byte) (streamingReceiver, error), replaceSession func(ctx context.Context) error, setTimestamp func(time.Time), release func(error)) *RowIterator {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__streamWithReplaceSessionFunc_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : %v %v %v %v %v %v\n", ctx, logger, rpc, replaceSession, setTimestamp, release)
+	r0 := gologoo__streamWithReplaceSessionFunc_7fd4d53bdad5ef404a290eb8dfb05849(ctx, logger, rpc, replaceSession, setTimestamp, release)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (r *RowIterator) Next() (*Row, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Next_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : (none)\n")
+	r0, r1 := r.gologoo__Next_7fd4d53bdad5ef404a290eb8dfb05849()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func extractRowCount(stats *sppb.ResultSetStats) (int64, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__extractRowCount_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : %v\n", stats)
+	r0, r1 := gologoo__extractRowCount_7fd4d53bdad5ef404a290eb8dfb05849(stats)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (r *RowIterator) Do(f func(r *Row) error) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Do_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : %v\n", f)
+	r0 := r.gologoo__Do_7fd4d53bdad5ef404a290eb8dfb05849(f)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (r *RowIterator) Stop() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Stop_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : (none)\n")
+	r.gologoo__Stop_7fd4d53bdad5ef404a290eb8dfb05849()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (q *partialResultQueue) empty() bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__empty_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : (none)\n")
+	r0 := q.gologoo__empty_7fd4d53bdad5ef404a290eb8dfb05849()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errEmptyQueue() error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errEmptyQueue_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : (none)\n")
+	r0 := gologoo__errEmptyQueue_7fd4d53bdad5ef404a290eb8dfb05849()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (q *partialResultQueue) peekLast() (*sppb.PartialResultSet, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__peekLast_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : (none)\n")
+	r0, r1 := q.gologoo__peekLast_7fd4d53bdad5ef404a290eb8dfb05849()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (q *partialResultQueue) push(r *sppb.PartialResultSet) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__push_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : %v\n", r)
+	q.gologoo__push_7fd4d53bdad5ef404a290eb8dfb05849(r)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (q *partialResultQueue) pop() *sppb.PartialResultSet {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__pop_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : (none)\n")
+	r0 := q.gologoo__pop_7fd4d53bdad5ef404a290eb8dfb05849()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (q *partialResultQueue) clear() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__clear_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : (none)\n")
+	q.gologoo__clear_7fd4d53bdad5ef404a290eb8dfb05849()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (q *partialResultQueue) dump() []*sppb.PartialResultSet {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__dump_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : (none)\n")
+	r0 := q.gologoo__dump_7fd4d53bdad5ef404a290eb8dfb05849()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func newResumableStreamDecoder(ctx context.Context, logger *log.Logger, rpc func(ct context.Context, restartToken []byte) (streamingReceiver, error), replaceSession func(ctx context.Context) error) *resumableStreamDecoder {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__newResumableStreamDecoder_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : %v %v %v %v\n", ctx, logger, rpc, replaceSession)
+	r0 := gologoo__newResumableStreamDecoder_7fd4d53bdad5ef404a290eb8dfb05849(ctx, logger, rpc, replaceSession)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (d *resumableStreamDecoder) changeState(target resumableStreamDecoderState) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__changeState_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : %v\n", target)
+	d.gologoo__changeState_7fd4d53bdad5ef404a290eb8dfb05849(target)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (d *resumableStreamDecoder) isNewResumeToken(rt []byte) bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isNewResumeToken_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : %v\n", rt)
+	r0 := d.gologoo__isNewResumeToken_7fd4d53bdad5ef404a290eb8dfb05849(rt)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (d *resumableStreamDecoder) next() bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__next_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : (none)\n")
+	r0 := d.gologoo__next_7fd4d53bdad5ef404a290eb8dfb05849()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (d *resumableStreamDecoder) tryRecv(retryer gax.Retryer) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__tryRecv_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : %v\n", retryer)
+	d.gologoo__tryRecv_7fd4d53bdad5ef404a290eb8dfb05849(retryer)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (d *resumableStreamDecoder) get() *sppb.PartialResultSet {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__get_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : (none)\n")
+	r0 := d.gologoo__get_7fd4d53bdad5ef404a290eb8dfb05849()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (d *resumableStreamDecoder) lastErr() error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__lastErr_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : (none)\n")
+	r0 := d.gologoo__lastErr_7fd4d53bdad5ef404a290eb8dfb05849()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (p *partialResultSetDecoder) yield(chunked, last bool) *Row {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__yield_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : %v %v\n", chunked, last)
+	r0 := p.gologoo__yield_7fd4d53bdad5ef404a290eb8dfb05849(chunked, last)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errChunkedEmptyRow() error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errChunkedEmptyRow_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : (none)\n")
+	r0 := gologoo__errChunkedEmptyRow_7fd4d53bdad5ef404a290eb8dfb05849()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (p *partialResultSetDecoder) add(r *sppb.PartialResultSet) ([]*Row, *sppb.ResultSetMetadata, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__add_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : %v\n", r)
+	r0, r1, r2 := p.gologoo__add_7fd4d53bdad5ef404a290eb8dfb05849(r)
+	log.Printf("Output: %v %v %v\n", r0, r1, r2)
+	return r0, r1, r2
+}
+func (p *partialResultSetDecoder) isMergeable(a *proto3.Value) bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__isMergeable_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : %v\n", a)
+	r0 := p.gologoo__isMergeable_7fd4d53bdad5ef404a290eb8dfb05849(a)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errIncompatibleMergeTypes(a, b *proto3.Value) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errIncompatibleMergeTypes_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : %v %v\n", a, b)
+	r0 := gologoo__errIncompatibleMergeTypes_7fd4d53bdad5ef404a290eb8dfb05849(a, b)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func errUnsupportedMergeType(a *proto3.Value) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__errUnsupportedMergeType_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : %v\n", a)
+	r0 := gologoo__errUnsupportedMergeType_7fd4d53bdad5ef404a290eb8dfb05849(a)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (p *partialResultSetDecoder) merge(a, b *proto3.Value) (*proto3.Value, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__merge_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : %v %v\n", a, b)
+	r0, r1 := p.gologoo__merge_7fd4d53bdad5ef404a290eb8dfb05849(a, b)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (p *partialResultSetDecoder) done() bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__done_7fd4d53bdad5ef404a290eb8dfb05849")
+	log.Printf("Input : (none)\n")
+	r0 := p.gologoo__done_7fd4d53bdad5ef404a290eb8dfb05849()
+	log.Printf("Output: %v\n", r0)
+	return r0
 }

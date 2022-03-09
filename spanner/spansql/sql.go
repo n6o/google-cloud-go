@@ -1,27 +1,4 @@
-/*
-Copyright 2019 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package spansql
-
-// This file holds SQL methods for rendering the types in types.go
-// as the SQL dialect that this package parses.
-//
-// Every exported type has an SQL method that returns a string.
-// Some also have an addSQL method that efficiently builds that string
-// in a provided strings.Builder.
 
 import (
 	"fmt"
@@ -29,15 +6,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"log"
 )
 
-func buildSQL(x interface{ addSQL(*strings.Builder) }) string {
+func gologoo__buildSQL_6948c200d52dc131145058c7d4919511(x interface {
+	addSQL(*strings.Builder)
+}) string {
 	var sb strings.Builder
 	x.addSQL(&sb)
 	return sb.String()
 }
-
-func (ct CreateTable) SQL() string {
+func (ct CreateTable) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	str := "CREATE TABLE " + ct.Name.SQL() + " (\n"
 	for _, c := range ct.Columns {
 		str += "  " + c.SQL() + ",\n"
@@ -61,8 +40,7 @@ func (ct CreateTable) SQL() string {
 	}
 	return str
 }
-
-func (ci CreateIndex) SQL() string {
+func (ci CreateIndex) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	str := "CREATE"
 	if ci.Unique {
 		str += " UNIQUE"
@@ -86,8 +64,7 @@ func (ci CreateIndex) SQL() string {
 	}
 	return str
 }
-
-func (cv CreateView) SQL() string {
+func (cv CreateView) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	str := "CREATE"
 	if cv.OrReplace {
 		str += " OR REPLACE"
@@ -95,44 +72,34 @@ func (cv CreateView) SQL() string {
 	str += " VIEW " + cv.Name.SQL() + " SQL SECURITY INVOKER AS " + cv.Query.SQL()
 	return str
 }
-
-func (dt DropTable) SQL() string {
+func (dt DropTable) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "DROP TABLE " + dt.Name.SQL()
 }
-
-func (di DropIndex) SQL() string {
+func (di DropIndex) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "DROP INDEX " + di.Name.SQL()
 }
-
-func (dv DropView) SQL() string {
+func (dv DropView) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "DROP VIEW " + dv.Name.SQL()
 }
-
-func (at AlterTable) SQL() string {
+func (at AlterTable) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "ALTER TABLE " + at.Name.SQL() + " " + at.Alteration.SQL()
 }
-
-func (ac AddColumn) SQL() string {
+func (ac AddColumn) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "ADD COLUMN " + ac.Def.SQL()
 }
-
-func (dc DropColumn) SQL() string {
+func (dc DropColumn) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "DROP COLUMN " + dc.Name.SQL()
 }
-
-func (ac AddConstraint) SQL() string {
+func (ac AddConstraint) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "ADD " + ac.Constraint.SQL()
 }
-
-func (dc DropConstraint) SQL() string {
+func (dc DropConstraint) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "DROP CONSTRAINT " + dc.Name.SQL()
 }
-
-func (sod SetOnDelete) SQL() string {
+func (sod SetOnDelete) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "SET ON DELETE " + sod.Action.SQL()
 }
-
-func (od OnDelete) SQL() string {
+func (od OnDelete) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	switch od {
 	case NoActionOnDelete:
 		return "NO ACTION"
@@ -141,36 +108,29 @@ func (od OnDelete) SQL() string {
 	}
 	panic("unknown OnDelete")
 }
-
-func (ac AlterColumn) SQL() string {
+func (ac AlterColumn) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "ALTER COLUMN " + ac.Name.SQL() + " " + ac.Alteration.SQL()
 }
-
-func (ardp AddRowDeletionPolicy) SQL() string {
+func (ardp AddRowDeletionPolicy) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "ADD " + ardp.RowDeletionPolicy.SQL()
 }
-
-func (rrdp ReplaceRowDeletionPolicy) SQL() string {
+func (rrdp ReplaceRowDeletionPolicy) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "REPLACE " + rrdp.RowDeletionPolicy.SQL()
 }
-
-func (drdp DropRowDeletionPolicy) SQL() string {
+func (drdp DropRowDeletionPolicy) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "DROP ROW DELETION POLICY"
 }
-func (sct SetColumnType) SQL() string {
+func (sct SetColumnType) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	str := sct.Type.SQL()
 	if sct.NotNull {
 		str += " NOT NULL"
 	}
 	return str
 }
-
-func (sco SetColumnOptions) SQL() string {
-	// TODO: not clear what to do for no options.
+func (sco SetColumnOptions) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "SET " + sco.Options.SQL()
 }
-
-func (co ColumnOptions) SQL() string {
+func (co ColumnOptions) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	str := "OPTIONS ("
 	if co.AllowCommitTimestamp != nil {
 		if *co.AllowCommitTimestamp {
@@ -182,16 +142,13 @@ func (co ColumnOptions) SQL() string {
 	str += ")"
 	return str
 }
-
-func (ad AlterDatabase) SQL() string {
+func (ad AlterDatabase) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "ALTER DATABASE " + ad.Name.SQL() + " " + ad.Alteration.SQL()
 }
-
-func (sdo SetDatabaseOptions) SQL() string {
+func (sdo SetDatabaseOptions) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "SET " + sdo.Options.SQL()
 }
-
-func (do DatabaseOptions) SQL() string {
+func (do DatabaseOptions) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	str := "OPTIONS ("
 	hasOpt := false
 	if do.OptimizerVersion != nil {
@@ -227,12 +184,10 @@ func (do DatabaseOptions) SQL() string {
 	str += ")"
 	return str
 }
-
-func (d *Delete) SQL() string {
+func (d *Delete) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "DELETE FROM " + d.Table.SQL() + " WHERE " + d.Where.SQL()
 }
-
-func (u *Update) SQL() string {
+func (u *Update) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	str := "UPDATE " + u.Table.SQL() + " SET "
 	for i, item := range u.Items {
 		if i > 0 {
@@ -248,8 +203,7 @@ func (u *Update) SQL() string {
 	str += " WHERE " + u.Where.SQL()
 	return str
 }
-
-func (cd ColumnDef) SQL() string {
+func (cd ColumnDef) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	str := cd.Name.SQL() + " " + cd.Type.SQL()
 	if cd.NotNull {
 		str += " NOT NULL"
@@ -262,8 +216,7 @@ func (cd ColumnDef) SQL() string {
 	}
 	return str
 }
-
-func (tc TableConstraint) SQL() string {
+func (tc TableConstraint) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	var str string
 	if tc.Name != "" {
 		str += "CONSTRAINT " + tc.Name.SQL() + " "
@@ -271,23 +224,19 @@ func (tc TableConstraint) SQL() string {
 	str += tc.Constraint.SQL()
 	return str
 }
-
-func (rdp RowDeletionPolicy) SQL() string {
+func (rdp RowDeletionPolicy) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "ROW DELETION POLICY ( OLDER_THAN ( " + rdp.Column.SQL() + ", INTERVAL " + strconv.FormatInt(rdp.NumDays, 10) + " DAY ))"
 }
-
-func (fk ForeignKey) SQL() string {
+func (fk ForeignKey) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	str := "FOREIGN KEY (" + idList(fk.Columns, ", ")
 	str += ") REFERENCES " + fk.RefTable.SQL() + " ("
 	str += idList(fk.RefColumns, ", ") + ")"
 	return str
 }
-
-func (c Check) SQL() string {
+func (c Check) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	return "CHECK (" + c.Expr.SQL() + ")"
 }
-
-func (t Type) SQL() string {
+func (t Type) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	str := t.Base.SQL()
 	if t.Len > 0 && (t.Base == String || t.Base == Bytes) {
 		str += "("
@@ -303,8 +252,7 @@ func (t Type) SQL() string {
 	}
 	return str
 }
-
-func (tb TypeBase) SQL() string {
+func (tb TypeBase) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	switch tb {
 	case Bool:
 		return "BOOL"
@@ -327,17 +275,17 @@ func (tb TypeBase) SQL() string {
 	}
 	panic("unknown TypeBase")
 }
-
-func (kp KeyPart) SQL() string {
+func (kp KeyPart) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	str := kp.Column.SQL()
 	if kp.Desc {
 		str += " DESC"
 	}
 	return str
 }
-
-func (q Query) SQL() string { return buildSQL(q) }
-func (q Query) addSQL(sb *strings.Builder) {
+func (q Query) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(q)
+}
+func (q Query) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	q.Select.addSQL(sb)
 	if len(q.Order) > 0 {
 		sb.WriteString(" ORDER BY ")
@@ -357,9 +305,10 @@ func (q Query) addSQL(sb *strings.Builder) {
 		}
 	}
 }
-
-func (sel Select) SQL() string { return buildSQL(sel) }
-func (sel Select) addSQL(sb *strings.Builder) {
+func (sel Select) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(sel)
+}
+func (sel Select) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	sb.WriteString("SELECT ")
 	if sel.Distinct {
 		sb.WriteString("DISTINCT ")
@@ -395,8 +344,7 @@ func (sel Select) addSQL(sb *strings.Builder) {
 		addExprList(sb, sel.GroupBy, ", ")
 	}
 }
-
-func (sft SelectFromTable) SQL() string {
+func (sft SelectFromTable) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	str := sft.Table.SQL()
 	if len(sft.Hints) > 0 {
 		str += "@{"
@@ -410,17 +358,13 @@ func (sft SelectFromTable) SQL() string {
 		str += strings.Join(kvs, ",")
 		str += "}"
 	}
-
 	if sft.Alias != "" {
 		str += " AS " + sft.Alias.SQL()
 	}
 	return str
 }
-
-func (sfj SelectFromJoin) SQL() string {
-	// TODO: The grammar permits arbitrary nesting. Does this need to add parens?
+func (sfj SelectFromJoin) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	str := sfj.LHS.SQL() + " " + joinTypes[sfj.Type] + " JOIN "
-	// TODO: hints go here
 	str += sfj.RHS.SQL()
 	if sfj.On != nil {
 		str += " ON " + sfj.On.SQL()
@@ -430,48 +374,31 @@ func (sfj SelectFromJoin) SQL() string {
 	return str
 }
 
-var joinTypes = map[JoinType]string{
-	InnerJoin: "INNER",
-	CrossJoin: "CROSS",
-	FullJoin:  "FULL",
-	LeftJoin:  "LEFT",
-	RightJoin: "RIGHT",
-}
+var joinTypes = map[JoinType]string{InnerJoin: "INNER", CrossJoin: "CROSS", FullJoin: "FULL", LeftJoin: "LEFT", RightJoin: "RIGHT"}
 
-func (sfu SelectFromUnnest) SQL() string {
+func (sfu SelectFromUnnest) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
 	str := "UNNEST(" + sfu.Expr.SQL() + ")"
 	if sfu.Alias != "" {
 		str += " AS " + sfu.Alias.SQL()
 	}
 	return str
 }
-
-func (o Order) SQL() string { return buildSQL(o) }
-func (o Order) addSQL(sb *strings.Builder) {
+func (o Order) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(o)
+}
+func (o Order) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	o.Expr.addSQL(sb)
 	if o.Desc {
 		sb.WriteString(" DESC")
 	}
 }
 
-var arithOps = map[ArithOperator]string{
-	// Binary operators only; unary operators are handled first.
-	Mul:    "*",
-	Div:    "/",
-	Concat: "||",
-	Add:    "+",
-	Sub:    "-",
-	BitShl: "<<",
-	BitShr: ">>",
-	BitAnd: "&",
-	BitXor: "^",
-	BitOr:  "|",
+var arithOps = map[ArithOperator]string{Mul: "*", Div: "/", Concat: "||", Add: "+", Sub: "-", BitShl: "<<", BitShr: ">>", BitAnd: "&", BitXor: "^", BitOr: "|"}
+
+func (ao ArithOp) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(ao)
 }
-
-func (ao ArithOp) SQL() string { return buildSQL(ao) }
-func (ao ArithOp) addSQL(sb *strings.Builder) {
-	// Extra parens inserted to ensure the correct precedence.
-
+func (ao ArithOp) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	switch ao.Op {
 	case Neg:
 		sb.WriteString("-(")
@@ -501,9 +428,10 @@ func (ao ArithOp) addSQL(sb *strings.Builder) {
 	ao.RHS.addSQL(sb)
 	sb.WriteString(")")
 }
-
-func (lo LogicalOp) SQL() string { return buildSQL(lo) }
-func (lo LogicalOp) addSQL(sb *strings.Builder) {
+func (lo LogicalOp) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(lo)
+}
+func (lo LogicalOp) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	switch lo.Op {
 	default:
 		panic("unknown LogicalOp")
@@ -519,21 +447,12 @@ func (lo LogicalOp) addSQL(sb *strings.Builder) {
 	lo.RHS.addSQL(sb)
 }
 
-var compOps = map[ComparisonOperator]string{
-	Lt:         "<",
-	Le:         "<=",
-	Gt:         ">",
-	Ge:         ">=",
-	Eq:         "=",
-	Ne:         "!=",
-	Like:       "LIKE",
-	NotLike:    "NOT LIKE",
-	Between:    "BETWEEN",
-	NotBetween: "NOT BETWEEN",
-}
+var compOps = map[ComparisonOperator]string{Lt: "<", Le: "<=", Gt: ">", Ge: ">=", Eq: "=", Ne: "!=", Like: "LIKE", NotLike: "NOT LIKE", Between: "BETWEEN", NotBetween: "NOT BETWEEN"}
 
-func (co ComparisonOp) SQL() string { return buildSQL(co) }
-func (co ComparisonOp) addSQL(sb *strings.Builder) {
+func (co ComparisonOp) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(co)
+}
+func (co ComparisonOp) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	op, ok := compOps[co.Op]
 	if !ok {
 		panic("unknown ComparisonOp")
@@ -548,9 +467,10 @@ func (co ComparisonOp) addSQL(sb *strings.Builder) {
 		co.RHS2.addSQL(sb)
 	}
 }
-
-func (io InOp) SQL() string { return buildSQL(io) }
-func (io InOp) addSQL(sb *strings.Builder) {
+func (io InOp) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(io)
+}
+func (io InOp) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	io.LHS.addSQL(sb)
 	if io.Neg {
 		sb.WriteString(" NOT")
@@ -563,9 +483,10 @@ func (io InOp) addSQL(sb *strings.Builder) {
 	addExprList(sb, io.RHS, ", ")
 	sb.WriteString(")")
 }
-
-func (io IsOp) SQL() string { return buildSQL(io) }
-func (io IsOp) addSQL(sb *strings.Builder) {
+func (io IsOp) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(io)
+}
+func (io IsOp) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	io.LHS.addSQL(sb)
 	sb.WriteString(" IS ")
 	if io.Neg {
@@ -573,45 +494,47 @@ func (io IsOp) addSQL(sb *strings.Builder) {
 	}
 	io.RHS.addSQL(sb)
 }
-
-func (f Func) SQL() string { return buildSQL(f) }
-func (f Func) addSQL(sb *strings.Builder) {
+func (f Func) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(f)
+}
+func (f Func) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	sb.WriteString(f.Name)
 	sb.WriteString("(")
 	addExprList(sb, f.Args, ", ")
 	sb.WriteString(")")
 }
-
-func (te TypedExpr) SQL() string { return buildSQL(te) }
-func (te TypedExpr) addSQL(sb *strings.Builder) {
+func (te TypedExpr) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(te)
+}
+func (te TypedExpr) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	te.Expr.addSQL(sb)
 	sb.WriteString(" AS ")
 	sb.WriteString(te.Type.SQL())
 }
-
-func (ee ExtractExpr) SQL() string { return buildSQL(ee) }
-func (ee ExtractExpr) addSQL(sb *strings.Builder) {
+func (ee ExtractExpr) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(ee)
+}
+func (ee ExtractExpr) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	sb.WriteString(ee.Part)
 	sb.WriteString(" FROM ")
 	ee.Expr.addSQL(sb)
 }
-
-func (aze AtTimeZoneExpr) SQL() string { return buildSQL(aze) }
-func (aze AtTimeZoneExpr) addSQL(sb *strings.Builder) {
+func (aze AtTimeZoneExpr) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(aze)
+}
+func (aze AtTimeZoneExpr) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	aze.Expr.addSQL(sb)
 	sb.WriteString(" AT TIME ZONE ")
 	sb.WriteString(aze.Zone)
 }
-
-func idList(l []ID, join string) string {
+func gologoo__idList_6948c200d52dc131145058c7d4919511(l []ID, join string) string {
 	var ss []string
 	for _, s := range l {
 		ss = append(ss, s.SQL())
 	}
 	return strings.Join(ss, join)
 }
-
-func addExprList(sb *strings.Builder, l []Expr, join string) {
+func gologoo__addExprList_6948c200d52dc131145058c7d4919511(sb *strings.Builder, l []Expr, join string) {
 	for i, s := range l {
 		if i > 0 {
 			sb.WriteString(join)
@@ -619,8 +542,7 @@ func addExprList(sb *strings.Builder, l []Expr, join string) {
 		s.addSQL(sb)
 	}
 }
-
-func addIDList(sb *strings.Builder, l []ID, join string) {
+func gologoo__addIDList_6948c200d52dc131145058c7d4919511(sb *strings.Builder, l []ID, join string) {
 	for i, s := range l {
 		if i > 0 {
 			sb.WriteString(join)
@@ -628,84 +550,840 @@ func addIDList(sb *strings.Builder, l []ID, join string) {
 		s.addSQL(sb)
 	}
 }
-
-func (pe PathExp) SQL() string { return buildSQL(pe) }
-func (pe PathExp) addSQL(sb *strings.Builder) {
+func (pe PathExp) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(pe)
+}
+func (pe PathExp) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	addIDList(sb, []ID(pe), ".")
 }
-
-func (p Paren) SQL() string { return buildSQL(p) }
-func (p Paren) addSQL(sb *strings.Builder) {
+func (p Paren) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(p)
+}
+func (p Paren) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	sb.WriteString("(")
 	p.Expr.addSQL(sb)
 	sb.WriteString(")")
 }
-
-func (a Array) SQL() string { return buildSQL(a) }
-func (a Array) addSQL(sb *strings.Builder) {
+func (a Array) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(a)
+}
+func (a Array) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	sb.WriteString("[")
 	addExprList(sb, []Expr(a), ", ")
 	sb.WriteString("]")
 }
-
-func (id ID) SQL() string { return buildSQL(id) }
-func (id ID) addSQL(sb *strings.Builder) {
-	// https://cloud.google.com/spanner/docs/lexical#identifiers
-
-	// TODO: If there are non-letters/numbers/underscores then this also needs quoting.
-
+func (id ID) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(id)
+}
+func (id ID) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	if IsKeyword(string(id)) {
-		// TODO: Escaping may be needed here.
 		sb.WriteString("`")
 		sb.WriteString(string(id))
 		sb.WriteString("`")
 		return
 	}
-
 	sb.WriteString(string(id))
 }
-
-func (p Param) SQL() string { return buildSQL(p) }
-func (p Param) addSQL(sb *strings.Builder) {
+func (p Param) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(p)
+}
+func (p Param) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	sb.WriteString("@")
 	sb.WriteString(string(p))
 }
-
-func (b BoolLiteral) SQL() string { return buildSQL(b) }
-func (b BoolLiteral) addSQL(sb *strings.Builder) {
+func (b BoolLiteral) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(b)
+}
+func (b BoolLiteral) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	if b {
 		sb.WriteString("TRUE")
 	} else {
 		sb.WriteString("FALSE")
 	}
 }
-
-func (NullLiteral) SQL() string                { return buildSQL(NullLiteral(0)) }
-func (NullLiteral) addSQL(sb *strings.Builder) { sb.WriteString("NULL") }
-
-func (StarExpr) SQL() string                { return buildSQL(StarExpr(0)) }
-func (StarExpr) addSQL(sb *strings.Builder) { sb.WriteString("*") }
-
-func (il IntegerLiteral) SQL() string                { return buildSQL(il) }
-func (il IntegerLiteral) addSQL(sb *strings.Builder) { fmt.Fprintf(sb, "%d", il) }
-
-func (fl FloatLiteral) SQL() string                { return buildSQL(fl) }
-func (fl FloatLiteral) addSQL(sb *strings.Builder) { fmt.Fprintf(sb, "%g", fl) }
-
-// TODO: provide correct string quote method and use it.
-
-func (sl StringLiteral) SQL() string                { return buildSQL(sl) }
-func (sl StringLiteral) addSQL(sb *strings.Builder) { fmt.Fprintf(sb, "%q", sl) }
-
-func (bl BytesLiteral) SQL() string                { return buildSQL(bl) }
-func (bl BytesLiteral) addSQL(sb *strings.Builder) { fmt.Fprintf(sb, "B%q", bl) }
-
-func (dl DateLiteral) SQL() string { return buildSQL(dl) }
-func (dl DateLiteral) addSQL(sb *strings.Builder) {
+func (NullLiteral) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(NullLiteral(0))
+}
+func (NullLiteral) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
+	sb.WriteString("NULL")
+}
+func (StarExpr) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(StarExpr(0))
+}
+func (StarExpr) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
+	sb.WriteString("*")
+}
+func (il IntegerLiteral) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(il)
+}
+func (il IntegerLiteral) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
+	fmt.Fprintf(sb, "%d", il)
+}
+func (fl FloatLiteral) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(fl)
+}
+func (fl FloatLiteral) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
+	fmt.Fprintf(sb, "%g", fl)
+}
+func (sl StringLiteral) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(sl)
+}
+func (sl StringLiteral) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
+	fmt.Fprintf(sb, "%q", sl)
+}
+func (bl BytesLiteral) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(bl)
+}
+func (bl BytesLiteral) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
+	fmt.Fprintf(sb, "B%q", bl)
+}
+func (dl DateLiteral) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(dl)
+}
+func (dl DateLiteral) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	fmt.Fprintf(sb, "DATE '%04d-%02d-%02d'", dl.Year, dl.Month, dl.Day)
 }
-
-func (tl TimestampLiteral) SQL() string { return buildSQL(tl) }
-func (tl TimestampLiteral) addSQL(sb *strings.Builder) {
+func (tl TimestampLiteral) gologoo__SQL_6948c200d52dc131145058c7d4919511() string {
+	return buildSQL(tl)
+}
+func (tl TimestampLiteral) gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb *strings.Builder) {
 	fmt.Fprintf(sb, "TIMESTAMP '%s'", time.Time(tl).Format("2006-01-02 15:04:05.000000 -07:00"))
+}
+func buildSQL(x interface {
+	addSQL(*strings.Builder)
+}) string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__buildSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", x)
+	r0 := gologoo__buildSQL_6948c200d52dc131145058c7d4919511(x)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (ct CreateTable) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := ct.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (ci CreateIndex) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := ci.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (cv CreateView) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := cv.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (dt DropTable) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := dt.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (di DropIndex) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := di.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (dv DropView) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := dv.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (at AlterTable) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := at.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (ac AddColumn) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := ac.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (dc DropColumn) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := dc.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (ac AddConstraint) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := ac.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (dc DropConstraint) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := dc.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (sod SetOnDelete) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := sod.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (od OnDelete) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := od.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (ac AlterColumn) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := ac.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (ardp AddRowDeletionPolicy) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := ardp.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (rrdp ReplaceRowDeletionPolicy) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := rrdp.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (drdp DropRowDeletionPolicy) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := drdp.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (sct SetColumnType) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := sct.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (sco SetColumnOptions) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := sco.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (co ColumnOptions) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := co.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (ad AlterDatabase) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := ad.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (sdo SetDatabaseOptions) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := sdo.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (do DatabaseOptions) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := do.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (d *Delete) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := d.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (u *Update) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := u.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (cd ColumnDef) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := cd.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (tc TableConstraint) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := tc.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (rdp RowDeletionPolicy) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := rdp.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (fk ForeignKey) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := fk.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (c Check) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := c.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (t Type) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := t.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (tb TypeBase) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := tb.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (kp KeyPart) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := kp.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (q Query) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := q.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (q Query) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	q.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (sel Select) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := sel.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (sel Select) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	sel.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (sft SelectFromTable) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := sft.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (sfj SelectFromJoin) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := sfj.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (sfu SelectFromUnnest) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := sfu.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (o Order) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := o.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (o Order) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	o.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (ao ArithOp) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := ao.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (ao ArithOp) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	ao.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (lo LogicalOp) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := lo.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (lo LogicalOp) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	lo.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (co ComparisonOp) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := co.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (co ComparisonOp) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	co.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (io InOp) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := io.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (io InOp) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	io.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (io IsOp) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := io.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (io IsOp) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	io.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (f Func) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := f.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (f Func) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	f.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (te TypedExpr) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := te.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (te TypedExpr) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	te.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (ee ExtractExpr) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := ee.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (ee ExtractExpr) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	ee.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (aze AtTimeZoneExpr) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := aze.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (aze AtTimeZoneExpr) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	aze.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func idList(l []ID, join string) string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__idList_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v %v\n", l, join)
+	r0 := gologoo__idList_6948c200d52dc131145058c7d4919511(l, join)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func addExprList(sb *strings.Builder, l []Expr, join string) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addExprList_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v %v %v\n", sb, l, join)
+	gologoo__addExprList_6948c200d52dc131145058c7d4919511(sb, l, join)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func addIDList(sb *strings.Builder, l []ID, join string) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addIDList_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v %v %v\n", sb, l, join)
+	gologoo__addIDList_6948c200d52dc131145058c7d4919511(sb, l, join)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (pe PathExp) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := pe.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (pe PathExp) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	pe.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (p Paren) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := p.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (p Paren) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	p.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (a Array) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := a.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (a Array) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	a.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (id ID) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := id.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (id ID) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	id.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (p Param) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := p.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (p Param) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	p.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (b BoolLiteral) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := b.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (b BoolLiteral) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	b.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv NullLiteral) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := recv.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (recv NullLiteral) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	recv.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (recv StarExpr) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := recv.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (recv StarExpr) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	recv.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (il IntegerLiteral) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := il.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (il IntegerLiteral) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	il.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (fl FloatLiteral) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := fl.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (fl FloatLiteral) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	fl.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (sl StringLiteral) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := sl.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (sl StringLiteral) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	sl.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (bl BytesLiteral) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := bl.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (bl BytesLiteral) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	bl.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (dl DateLiteral) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := dl.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (dl DateLiteral) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	dl.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (tl TimestampLiteral) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : (none)\n")
+	r0 := tl.gologoo__SQL_6948c200d52dc131145058c7d4919511()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (tl TimestampLiteral) addSQL(sb *strings.Builder) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addSQL_6948c200d52dc131145058c7d4919511")
+	log.Printf("Input : %v\n", sb)
+	tl.gologoo__addSQL_6948c200d52dc131145058c7d4919511(sb)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
 }

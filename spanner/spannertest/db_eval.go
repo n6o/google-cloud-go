@@ -1,22 +1,4 @@
-/*
-Copyright 2019 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package spannertest
-
-// This file contains the part of the Spanner fake that evaluates expressions.
 
 import (
 	"bytes"
@@ -25,38 +7,33 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
 	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner/spansql"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"log"
 )
 
-// evalContext represents the context for evaluating an expression.
 type evalContext struct {
-	// cols and row are set during expr evaluation.
-	cols []colInfo
-	row  row
-
-	// If there are visible aliases, they are populated here.
+	cols    []colInfo
+	row     row
 	aliases map[spansql.ID]spansql.Expr
-
-	params queryParams
+	params  queryParams
 }
-
-// coercedValue represents a literal value that has been coerced to a different type.
-// This never leaves this package, nor is persisted.
 type coercedValue struct {
-	spansql.Expr             // not a real Expr
-	val          interface{} // internal representation
-	// TODO: type?
+	spansql.Expr
+	val interface {
+	}
 	orig spansql.Expr
 }
 
-func (cv coercedValue) SQL() string { return cv.orig.SQL() }
-
-func (ec evalContext) evalExprList(list []spansql.Expr) ([]interface{}, error) {
-	var out []interface{}
+func (cv coercedValue) gologoo__SQL_71e383cb26f1785bb4841431523136cf() string {
+	return cv.orig.SQL()
+}
+func (ec evalContext) gologoo__evalExprList_71e383cb26f1785bb4841431523136cf(list []spansql.Expr) ([]interface {
+}, error) {
+	var out []interface {
+	}
 	for _, e := range list {
 		x, err := ec.evalExpr(e)
 		if err != nil {
@@ -66,21 +43,20 @@ func (ec evalContext) evalExprList(list []spansql.Expr) ([]interface{}, error) {
 	}
 	return out, nil
 }
-
-func (ec evalContext) evalBoolExpr(be spansql.BoolExpr) (*bool, error) {
+func (ec evalContext) gologoo__evalBoolExpr_71e383cb26f1785bb4841431523136cf(be spansql.BoolExpr) (*bool, error) {
 	switch be := be.(type) {
 	default:
 		return nil, fmt.Errorf("unhandled BoolExpr %T", be)
 	case spansql.BoolLiteral:
 		b := bool(be)
 		return &b, nil
-	case spansql.ID, spansql.Param, spansql.Paren, spansql.Func, spansql.InOp: // InOp is a bit weird.
+	case spansql.ID, spansql.Param, spansql.Paren, spansql.Func, spansql.InOp:
 		e, err := ec.evalExpr(be)
 		if err != nil {
 			return nil, err
 		}
 		if e == nil {
-			return nil, nil // preserve NULLs
+			return nil, nil
 		}
 		b, ok := e.(bool)
 		if !ok {
@@ -100,37 +76,28 @@ func (ec evalContext) evalBoolExpr(be spansql.BoolExpr) (*bool, error) {
 		if err != nil {
 			return nil, err
 		}
-		// https://cloud.google.com/spanner/docs/operators#logical_operators
 		switch be.Op {
 		case spansql.And:
 			if lhs != nil {
 				if *lhs {
-					// TRUE AND x => x
 					return rhs, nil
 				}
-				// FALSE AND x => FALSE
 				return lhs, nil
 			}
-			// NULL AND FALSE => FALSE
 			if rhs != nil && !*rhs {
 				return rhs, nil
 			}
-			// NULL AND TRUE|NULL => NULL
 			return nil, nil
 		case spansql.Or:
 			if lhs != nil {
 				if *lhs {
-					// TRUE OR x => TRUE
 					return lhs, nil
 				}
-				// FALSE OR x => x
 				return rhs, nil
 			}
-			// NULL OR TRUE => TRUE
 			if rhs != nil && *rhs {
 				return rhs, nil
 			}
-			// NULL OR FALSE|NULL => NULL
 			return nil, nil
 		case spansql.Not:
 			if rhs == nil {
@@ -142,14 +109,10 @@ func (ec evalContext) evalBoolExpr(be spansql.BoolExpr) (*bool, error) {
 			return nil, fmt.Errorf("unhandled LogicalOp %d", be.Op)
 		}
 	case spansql.ComparisonOp:
-		// Per https://cloud.google.com/spanner/docs/operators#comparison_operators,
-		// "Cloud Spanner SQL will generally coerce literals to the type of non-literals, where present".
-		// Before evaluating be.LHS and be.RHS, do any necessary coercion.
 		be, err := ec.coerceComparisonOpArgs(be)
 		if err != nil {
 			return nil, err
 		}
-
 		lhs, err := ec.evalExpr(be.LHS)
 		if err != nil {
 			return nil, err
@@ -159,8 +122,6 @@ func (ec evalContext) evalBoolExpr(be spansql.BoolExpr) (*bool, error) {
 			return nil, err
 		}
 		if lhs == nil || rhs == nil {
-			// https://cloud.google.com/spanner/docs/operators#comparison_operators says
-			// "any operation with a NULL input returns NULL."
 			return nil, nil
 		}
 		var b bool
@@ -182,15 +143,12 @@ func (ec evalContext) evalBoolExpr(be spansql.BoolExpr) (*bool, error) {
 		case spansql.Like, spansql.NotLike:
 			left, ok := lhs.(string)
 			if !ok {
-				// TODO: byte works here too?
 				return nil, fmt.Errorf("LHS of LIKE is %T, not string", lhs)
 			}
 			right, ok := rhs.(string)
 			if !ok {
-				// TODO: byte works here too?
 				return nil, fmt.Errorf("RHS of LIKE is %T, not string", rhs)
 			}
-
 			b = evalLike(left, right)
 			if be.Op == spansql.NotLike {
 				b = !b
@@ -217,8 +175,6 @@ func (ec evalContext) evalBoolExpr(be spansql.BoolExpr) (*bool, error) {
 			return nil, fmt.Errorf("unhandled IsOp %T", rhs)
 		case spansql.BoolLiteral:
 			if lhs == nil {
-				// For `X IS TRUE`, X being NULL is okay, and this evaluates
-				// to false. Same goes for `X IS FALSE`.
 				lhs = !bool(rhs)
 			}
 			lhsBool, ok := lhs.(bool)
@@ -235,9 +191,8 @@ func (ec evalContext) evalBoolExpr(be spansql.BoolExpr) (*bool, error) {
 		return &b, nil
 	}
 }
-
-func (ec evalContext) evalArithOp(e spansql.ArithOp) (interface{}, error) {
-	// TODO: Better NULL handling
+func (ec evalContext) gologoo__evalArithOp_71e383cb26f1785bb4841431523136cf(e spansql.ArithOp) (interface {
+}, error) {
 	switch e.Op {
 	case spansql.Neg:
 		rhs, err := ec.evalExpr(e.RHS)
@@ -266,7 +221,7 @@ func (ec evalContext) evalArithOp(e spansql.ArithOp) (interface{}, error) {
 		case int64:
 			return ^rhs, nil
 		case []byte:
-			b := append([]byte(nil), rhs...) // deep copy
+			b := append([]byte(nil), rhs...)
 			for i := range b {
 				b[i] = ^b[i]
 			}
@@ -283,7 +238,6 @@ func (ec evalContext) evalArithOp(e spansql.ArithOp) (interface{}, error) {
 			return nil, err
 		}
 		if rhs == 0 {
-			// TODO: Does real Spanner use a specific error code here?
 			return nil, fmt.Errorf("divide by zero")
 		}
 		return lhs / rhs, nil
@@ -368,11 +322,17 @@ func (ec evalContext) evalArithOp(e spansql.ArithOp) (interface{}, error) {
 		var f func(x, y byte) byte
 		switch e.Op {
 		case spansql.BitAnd:
-			f = func(x, y byte) byte { return x & y }
+			f = func(x, y byte) byte {
+				return x & y
+			}
 		case spansql.BitXor:
-			f = func(x, y byte) byte { return x ^ y }
+			f = func(x, y byte) byte {
+				return x ^ y
+			}
 		case spansql.BitOr:
-			f = func(x, y byte) byte { return x | y }
+			f = func(x, y byte) byte {
+				return x | y
+			}
 		}
 		b := make([]byte, len(b1))
 		for i := range b1 {
@@ -380,14 +340,14 @@ func (ec evalContext) evalArithOp(e spansql.ArithOp) (interface{}, error) {
 		}
 		return b, nil
 	}
-	// TODO: Concat, BitShl, BitShr
 	return nil, fmt.Errorf("TODO: evalArithOp(%s %v)", e.SQL(), e.Op)
 }
-
-func (ec evalContext) evalFunc(e spansql.Func) (interface{}, spansql.Type, error) {
+func (ec evalContext) gologoo__evalFunc_71e383cb26f1785bb4841431523136cf(e spansql.Func) (interface {
+}, spansql.Type, error) {
 	var err error
 	if f, ok := functions[e.Name]; ok {
-		args := make([]interface{}, len(e.Args))
+		args := make([]interface {
+		}, len(e.Args))
 		types := make([]spansql.Type, len(e.Args))
 		for i, arg := range e.Args {
 			if args[i], err = ec.evalExpr(arg); err != nil {
@@ -401,18 +361,15 @@ func (ec evalContext) evalFunc(e spansql.Func) (interface{}, spansql.Type, error
 	}
 	return nil, spansql.Type{}, status.Errorf(codes.Unimplemented, "function %q is not implemented", e.Name)
 }
-
-// evalFloat64 evaluates an expression and returns its FLOAT64 value.
-// If the expression does not yield a FLOAT64 or INT64 it returns an error.
-func (ec evalContext) evalFloat64(e spansql.Expr) (float64, error) {
+func (ec evalContext) gologoo__evalFloat64_71e383cb26f1785bb4841431523136cf(e spansql.Expr) (float64, error) {
 	v, err := ec.evalExpr(e)
 	if err != nil {
 		return 0, err
 	}
 	return asFloat64(e, v)
 }
-
-func asFloat64(e spansql.Expr, v interface{}) (float64, error) {
+func gologoo__asFloat64_71e383cb26f1785bb4841431523136cf(e spansql.Expr, v interface {
+}) (float64, error) {
 	switch v := v.(type) {
 	default:
 		return 0, fmt.Errorf("expression %s evaluates to %T, want FLOAT64 or INT64", e.SQL(), v)
@@ -422,22 +379,19 @@ func asFloat64(e spansql.Expr, v interface{}) (float64, error) {
 		return float64(v), nil
 	}
 }
-
-func (ec evalContext) evalExpr(e spansql.Expr) (interface{}, error) {
-	// Several cases below are handled by this.
-	// It evaluates a BoolExpr (which returns *bool for a tri-state BOOL)
-	// and converts it to true/false/nil.
-	evalBool := func(be spansql.BoolExpr) (interface{}, error) {
+func (ec evalContext) gologoo__evalExpr_71e383cb26f1785bb4841431523136cf(e spansql.Expr) (interface {
+}, error) {
+	evalBool := func(be spansql.BoolExpr) (interface {
+	}, error) {
 		b, err := ec.evalBoolExpr(be)
 		if err != nil {
 			return nil, err
 		}
 		if b == nil {
-			return nil, nil // (*bool)(nil) -> interface nil
+			return nil, nil
 		}
 		return *b, nil
 	}
-
 	switch e := e.(type) {
 	default:
 		return nil, fmt.Errorf("TODO: evalExpr(%s %T)", e.SQL(), e)
@@ -480,7 +434,8 @@ func (ec evalContext) evalExpr(e spansql.Expr) (interface{}, error) {
 		}
 		return v, nil
 	case spansql.Array:
-		var arr []interface{}
+		var arr []interface {
+		}
 		for _, elt := range e {
 			v, err := ec.evalExpr(elt)
 			if err != nil {
@@ -488,7 +443,6 @@ func (ec evalContext) evalExpr(e spansql.Expr) (interface{}, error) {
 			}
 			arr = append(arr, v)
 		}
-		// TODO: enforce or coerce to consistent types.
 		return arr, nil
 	case spansql.ArithOp:
 		return ec.evalArithOp(e)
@@ -497,13 +451,7 @@ func (ec evalContext) evalExpr(e spansql.Expr) (interface{}, error) {
 	case spansql.ComparisonOp:
 		return evalBool(e)
 	case spansql.InOp:
-		// This is implemented here in evalExpr instead of evalBoolExpr
-		// because it can return FALSE/TRUE/NULL.
-		// The docs are a bit confusing here, so there's probably some bugs here around NULL handling.
-		// TODO: Can this now simplify using evalBool?
-
 		if len(e.RHS) == 0 {
-			// "IN with an empty right side expression is always FALSE".
 			return e.Neg, nil
 		}
 		lhs, err := ec.evalExpr(e.LHS)
@@ -511,7 +459,6 @@ func (ec evalContext) evalExpr(e spansql.Expr) (interface{}, error) {
 			return false, err
 		}
 		if lhs == nil {
-			// "IN with a NULL left side expression and a non-empty right side expression is always NULL".
 			return nil, nil
 		}
 		var b bool
@@ -526,15 +473,14 @@ func (ec evalContext) evalExpr(e spansql.Expr) (interface{}, error) {
 				}
 			} else {
 				if rhs == nil {
-					// "IN UNNEST(<NULL array>) returns FALSE (not NULL)".
 					return e.Neg, nil
 				}
-				arr, ok := rhs.([]interface{})
+				arr, ok := rhs.([]interface {
+				})
 				if !ok {
 					return nil, fmt.Errorf("UNNEST argument evaluated as %T, want array", rhs)
 				}
 				for _, rhs := range arr {
-					// == isn't okay here.
 					if compareVals(lhs, rhs) == 0 {
 						b = true
 					}
@@ -548,8 +494,6 @@ func (ec evalContext) evalExpr(e spansql.Expr) (interface{}, error) {
 	case spansql.IsOp:
 		return evalBool(e)
 	case aggSentinel:
-		// Match up e.AggIndex with the column.
-		// They might have been reordered.
 		ci := -1
 		for i, col := range ec.cols {
 			if col.AggIndex == e.AggIndex {
@@ -563,9 +507,7 @@ func (ec evalContext) evalExpr(e spansql.Expr) (interface{}, error) {
 		return ec.row[ci], nil
 	}
 }
-
-// resolveColumnIndex turns an ID or PathExp into a table column index.
-func (ec evalContext) resolveColumnIndex(e spansql.Expr) (int, error) {
+func (ec evalContext) gologoo__resolveColumnIndex_71e383cb26f1785bb4841431523136cf(e spansql.Expr) (int, error) {
 	switch e := e.(type) {
 	case spansql.ID:
 		for i, col := range ec.cols {
@@ -582,22 +524,19 @@ func (ec evalContext) resolveColumnIndex(e spansql.Expr) (int, error) {
 	}
 	return 0, fmt.Errorf("couldn't resolve [%s] as a table column", e.SQL())
 }
-
-func (ec evalContext) evalPathExp(pe spansql.PathExp) (interface{}, error) {
-	// TODO: support more than only naming an aliased table column.
+func (ec evalContext) gologoo__evalPathExp_71e383cb26f1785bb4841431523136cf(pe spansql.PathExp) (interface {
+}, error) {
 	if i, err := ec.resolveColumnIndex(pe); err == nil {
 		return ec.row.copyDataElem(i), nil
 	}
 	return nil, fmt.Errorf("couldn't resolve path expression %s", pe.SQL())
 }
-
-func (ec evalContext) evalID(id spansql.ID) (interface{}, error) {
+func (ec evalContext) gologoo__evalID_71e383cb26f1785bb4841431523136cf(id spansql.ID) (interface {
+}, error) {
 	if i, err := ec.resolveColumnIndex(id); err == nil {
 		return ec.row.copyDataElem(i), nil
 	}
 	if e, ok := ec.aliases[id]; ok {
-		// Make a copy of the context without this alias
-		// to prevent an evaluation cycle.
 		innerEC := ec
 		innerEC.aliases = make(map[spansql.ID]spansql.Expr)
 		for alias, e := range ec.aliases {
@@ -609,16 +548,10 @@ func (ec evalContext) evalID(id spansql.ID) (interface{}, error) {
 	}
 	return nil, fmt.Errorf("couldn't resolve identifier %s", id)
 }
-
-func (ec evalContext) coerceComparisonOpArgs(co spansql.ComparisonOp) (spansql.ComparisonOp, error) {
-	// https://cloud.google.com/spanner/docs/operators#comparison_operators
-
+func (ec evalContext) gologoo__coerceComparisonOpArgs_71e383cb26f1785bb4841431523136cf(co spansql.ComparisonOp) (spansql.ComparisonOp, error) {
 	if co.RHS2 != nil {
-		// TODO: Handle co.RHS2 for BETWEEN. The rules for that aren't clear.
 		return co, nil
 	}
-
-	// Look for a string literal on LHS or RHS.
 	var err error
 	if slit, ok := co.LHS.(spansql.StringLiteral); ok {
 		co.LHS, err = ec.coerceString(co.RHS, slit)
@@ -628,14 +561,9 @@ func (ec evalContext) coerceComparisonOpArgs(co spansql.ComparisonOp) (spansql.C
 		co.RHS, err = ec.coerceString(co.LHS, slit)
 		return co, err
 	}
-
-	// TODO: Other coercion literals. The int64/float64 code elsewhere may be able to be simplified.
-
 	return co, nil
 }
-
-// coerceString converts a string literal into something compatible with the target expression.
-func (ec evalContext) coerceString(target spansql.Expr, slit spansql.StringLiteral) (spansql.Expr, error) {
+func (ec evalContext) gologoo__coerceString_71e383cb26f1785bb4841431523136cf(target spansql.Expr, slit spansql.StringLiteral) (spansql.Expr, error) {
 	ci, err := ec.colInfo(target)
 	if err != nil {
 		return nil, err
@@ -651,35 +579,26 @@ func (ec evalContext) coerceString(target spansql.Expr, slit spansql.StringLiter
 		if err != nil {
 			return nil, fmt.Errorf("coercing string literal %q to DATE: %v", slit, err)
 		}
-		return coercedValue{
-			val:  d,
-			orig: slit,
-		}, nil
+		return coercedValue{val: d, orig: slit}, nil
 	case spansql.Timestamp:
 		t, err := parseAsTimestamp(string(slit))
 		if err != nil {
 			return nil, fmt.Errorf("coercing string literal %q to TIMESTAMP: %v", slit, err)
 		}
-		return coercedValue{
-			val:  t,
-			orig: slit,
-		}, nil
+		return coercedValue{val: t, orig: slit}, nil
 	}
-
-	// TODO: Any others?
-
 	return nil, fmt.Errorf("unable to coerce string literal %q to match %v", slit, ci.Type)
 }
-
-func (ec evalContext) evalTypedExpr(expr spansql.TypedExpr) (result interface{}, err error) {
+func (ec evalContext) gologoo__evalTypedExpr_71e383cb26f1785bb4841431523136cf(expr spansql.TypedExpr) (result interface {
+}, err error) {
 	val, err := ec.evalExpr(expr.Expr)
 	if err != nil {
 		return nil, err
 	}
 	return convert(val, expr.Type)
 }
-
-func (ec evalContext) evalExtractExpr(expr spansql.ExtractExpr) (result interface{}, err error) {
+func (ec evalContext) gologoo__evalExtractExpr_71e383cb26f1785bb4841431523136cf(expr spansql.ExtractExpr) (result interface {
+}, err error) {
 	val, err := ec.evalExpr(expr.Expr)
 	if err != nil {
 		return nil, err
@@ -716,8 +635,8 @@ func (ec evalContext) evalExtractExpr(expr spansql.ExtractExpr) (result interfac
 	}
 	return nil, fmt.Errorf("Extract with part %v not supported", expr.Part)
 }
-
-func (ec evalContext) evalAtTimeZoneExpr(expr spansql.AtTimeZoneExpr) (result interface{}, err error) {
+func (ec evalContext) gologoo__evalAtTimeZoneExpr_71e383cb26f1785bb4841431523136cf(expr spansql.AtTimeZoneExpr) (result interface {
+}, err error) {
 	val, err := ec.evalExpr(expr.Expr)
 	if err != nil {
 		return nil, err
@@ -733,8 +652,7 @@ func (ec evalContext) evalAtTimeZoneExpr(expr spansql.AtTimeZoneExpr) (result in
 		return nil, fmt.Errorf("AtTimeZone with %T not supported", val)
 	}
 }
-
-func evalLiteralOrParam(lop spansql.LiteralOrParam, params queryParams) (int64, error) {
+func gologoo__evalLiteralOrParam_71e383cb26f1785bb4841431523136cf(lop spansql.LiteralOrParam, params queryParams) (int64, error) {
 	switch v := lop.(type) {
 	case spansql.IntegerLiteral:
 		return int64(v), nil
@@ -744,8 +662,7 @@ func evalLiteralOrParam(lop spansql.LiteralOrParam, params queryParams) (int64, 
 		return 0, fmt.Errorf("LiteralOrParam with %T not supported", v)
 	}
 }
-
-func paramAsInteger(p spansql.Param, params queryParams) (int64, error) {
+func gologoo__paramAsInteger_71e383cb26f1785bb4841431523136cf(p spansql.Param, params queryParams) (int64, error) {
 	qp, ok := params[string(p)]
 	if !ok {
 		return 0, fmt.Errorf("unbound param %s", p.SQL())
@@ -763,10 +680,8 @@ func paramAsInteger(p spansql.Param, params queryParams) (int64, error) {
 		return x, nil
 	}
 }
-
-// compareValLists compares pair-wise elements of a and b.
-// If desc is not nil, it indicates which comparisons should be reversed.
-func compareValLists(a, b []interface{}, desc []bool) int {
+func gologoo__compareValLists_71e383cb26f1785bb4841431523136cf(a, b []interface {
+}, desc []bool) int {
 	for i := range a {
 		cmp := compareVals(a[i], b[i])
 		if cmp == 0 {
@@ -779,9 +694,8 @@ func compareValLists(a, b []interface{}, desc []bool) int {
 	}
 	return 0
 }
-
-func compareVals(x, y interface{}) int {
-	// NULL is always the minimum possible value.
+func gologoo__compareVals_71e383cb26f1785bb4841431523136cf(x, y interface {
+}) int {
 	if x == nil && y == nil {
 		return 0
 	} else if x == nil {
@@ -789,14 +703,10 @@ func compareVals(x, y interface{}) int {
 	} else if y == nil {
 		return 1
 	}
-
-	// TODO: coerce between more comparable types? factor this out for expressions other than comparisons.
-
 	switch x := x.(type) {
 	default:
 		panic(fmt.Sprintf("unhandled comparison on %T", x))
 	case bool:
-		// false < true
 		y := y.(bool)
 		if !x && y {
 			return -1
@@ -813,7 +723,6 @@ func compareVals(x, y interface{}) int {
 			}
 		}
 		if f, ok := y.(float64); ok {
-			// Coersion from INT64 to FLOAT64 is allowed.
 			return compareVals(x, f)
 		}
 		y := y.(int64)
@@ -824,7 +733,6 @@ func compareVals(x, y interface{}) int {
 		}
 		return 0
 	case float64:
-		// Coersion from INT64 to FLOAT64 is allowed.
 		if i, ok := y.(int64); ok {
 			y = float64(i)
 		}
@@ -865,8 +773,7 @@ var (
 	stringType  = spansql.Type{Base: spansql.String}
 )
 
-func (ec evalContext) colInfo(e spansql.Expr) (colInfo, error) {
-	// TODO: more types
+func (ec evalContext) gologoo__colInfo_71e383cb26f1785bb4841431523136cf(e spansql.Expr) (colInfo, error) {
 	switch e := e.(type) {
 	case spansql.BoolLiteral:
 		return colInfo{Type: boolType}, nil
@@ -885,12 +792,10 @@ func (ec evalContext) colInfo(e spansql.Expr) (colInfo, error) {
 	case spansql.LogicalOp, spansql.ComparisonOp, spansql.IsOp:
 		return colInfo{Type: spansql.Type{Base: spansql.Bool}}, nil
 	case spansql.PathExp, spansql.ID:
-		// TODO: support more than only naming a table column.
 		i, err := ec.resolveColumnIndex(e)
 		if err == nil {
 			return ec.cols[i], nil
 		}
-		// Let errors fall through.
 	case spansql.Param:
 		qp, ok := ec.params[string(e)]
 		if !ok {
@@ -906,9 +811,7 @@ func (ec evalContext) colInfo(e spansql.Expr) (colInfo, error) {
 		}
 		return colInfo{Type: t}, nil
 	case spansql.Array:
-		// Assume all element of an array literal have the same type.
 		if len(e) == 0 {
-			// TODO: What does the real Spanner do here?
 			return colInfo{Type: spansql.Type{Base: spansql.Int64, Array: true}}, nil
 		}
 		ci, err := ec.colInfo(e[0])
@@ -921,19 +824,13 @@ func (ec evalContext) colInfo(e spansql.Expr) (colInfo, error) {
 		ci.Type.Array = true
 		return ci, nil
 	case spansql.NullLiteral:
-		// There isn't necessarily something sensible here.
-		// Empirically, though, the real Spanner returns Int64.
 		return colInfo{Type: int64Type}, nil
 	case aggSentinel:
 		return colInfo{Type: e.Type, AggIndex: e.AggIndex}, nil
 	}
 	return colInfo{}, fmt.Errorf("can't deduce column type from expression [%s] (type %T)", e.SQL(), e)
 }
-
-func (ec evalContext) arithColType(ao spansql.ArithOp) (spansql.Type, error) {
-	// The type depends on the particular operator and the argument types.
-	// https://cloud.google.com/spanner/docs/functions-and-operators#arithmetic_operators
-
+func (ec evalContext) gologoo__arithColType_71e383cb26f1785bb4841431523136cf(ao spansql.ArithOp) (spansql.Type, error) {
 	var lhs, rhs spansql.Type
 	var err error
 	if ao.LHS != nil {
@@ -948,7 +845,6 @@ func (ec evalContext) arithColType(ao spansql.ArithOp) (spansql.Type, error) {
 		return spansql.Type{}, err
 	}
 	rhs = ci.Type
-
 	switch ao.Op {
 	default:
 		return spansql.Type{}, fmt.Errorf("can't deduce column type from ArithOp [%s]", ao.SQL())
@@ -967,12 +863,10 @@ func (ec evalContext) arithColType(ao spansql.ArithOp) (spansql.Type, error) {
 		}
 		return lhs, nil
 	case spansql.BitShl, spansql.BitShr, spansql.BitAnd, spansql.BitXor, spansql.BitOr:
-		// "All bitwise operators return the same type and the same length as the first operand."
 		return lhs, nil
 	}
 }
-
-func pathExpEqual(a, b spansql.PathExp) bool {
+func gologoo__pathExpEqual_71e383cb26f1785bb4841431523136cf(a, b spansql.PathExp) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -983,15 +877,7 @@ func pathExpEqual(a, b spansql.PathExp) bool {
 	}
 	return true
 }
-
-func evalLike(str, pat string) bool {
-	/*
-		% matches any number of chars.
-		_ matches a single char.
-		TODO: handle escaping
-	*/
-
-	// Lean on regexp for simplicity.
+func gologoo__evalLike_71e383cb26f1785bb4841431523136cf(str, pat string) bool {
 	pat = regexp.QuoteMeta(pat)
 	if !strings.HasPrefix(pat, "%") {
 		pat = "^" + pat
@@ -1006,4 +892,208 @@ func evalLike(str, pat string) bool {
 		panic(fmt.Sprintf("internal error: constructed bad regexp /%s/: %v", pat, err))
 	}
 	return match
+}
+func (cv coercedValue) SQL() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__SQL_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : (none)\n")
+	r0 := cv.gologoo__SQL_71e383cb26f1785bb4841431523136cf()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (ec evalContext) evalExprList(list []spansql.Expr) ([]interface {
+}, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__evalExprList_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v\n", list)
+	r0, r1 := ec.gologoo__evalExprList_71e383cb26f1785bb4841431523136cf(list)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (ec evalContext) evalBoolExpr(be spansql.BoolExpr) (*bool, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__evalBoolExpr_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v\n", be)
+	r0, r1 := ec.gologoo__evalBoolExpr_71e383cb26f1785bb4841431523136cf(be)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (ec evalContext) evalArithOp(e spansql.ArithOp) (interface {
+}, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__evalArithOp_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v\n", e)
+	r0, r1 := ec.gologoo__evalArithOp_71e383cb26f1785bb4841431523136cf(e)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (ec evalContext) evalFunc(e spansql.Func) (interface {
+}, spansql.Type, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__evalFunc_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v\n", e)
+	r0, r1, r2 := ec.gologoo__evalFunc_71e383cb26f1785bb4841431523136cf(e)
+	log.Printf("Output: %v %v %v\n", r0, r1, r2)
+	return r0, r1, r2
+}
+func (ec evalContext) evalFloat64(e spansql.Expr) (float64, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__evalFloat64_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v\n", e)
+	r0, r1 := ec.gologoo__evalFloat64_71e383cb26f1785bb4841431523136cf(e)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func asFloat64(e spansql.Expr, v interface {
+}) (float64, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__asFloat64_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v %v\n", e, v)
+	r0, r1 := gologoo__asFloat64_71e383cb26f1785bb4841431523136cf(e, v)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (ec evalContext) evalExpr(e spansql.Expr) (interface {
+}, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__evalExpr_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v\n", e)
+	r0, r1 := ec.gologoo__evalExpr_71e383cb26f1785bb4841431523136cf(e)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (ec evalContext) resolveColumnIndex(e spansql.Expr) (int, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__resolveColumnIndex_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v\n", e)
+	r0, r1 := ec.gologoo__resolveColumnIndex_71e383cb26f1785bb4841431523136cf(e)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (ec evalContext) evalPathExp(pe spansql.PathExp) (interface {
+}, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__evalPathExp_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v\n", pe)
+	r0, r1 := ec.gologoo__evalPathExp_71e383cb26f1785bb4841431523136cf(pe)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (ec evalContext) evalID(id spansql.ID) (interface {
+}, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__evalID_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v\n", id)
+	r0, r1 := ec.gologoo__evalID_71e383cb26f1785bb4841431523136cf(id)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (ec evalContext) coerceComparisonOpArgs(co spansql.ComparisonOp) (spansql.ComparisonOp, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__coerceComparisonOpArgs_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v\n", co)
+	r0, r1 := ec.gologoo__coerceComparisonOpArgs_71e383cb26f1785bb4841431523136cf(co)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (ec evalContext) coerceString(target spansql.Expr, slit spansql.StringLiteral) (spansql.Expr, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__coerceString_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v %v\n", target, slit)
+	r0, r1 := ec.gologoo__coerceString_71e383cb26f1785bb4841431523136cf(target, slit)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (ec evalContext) evalTypedExpr(expr spansql.TypedExpr) (result interface {
+}, err error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__evalTypedExpr_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v\n", expr)
+	result, err = ec.gologoo__evalTypedExpr_71e383cb26f1785bb4841431523136cf(expr)
+	log.Printf("Output: %v %v\n", result, err)
+	return
+}
+func (ec evalContext) evalExtractExpr(expr spansql.ExtractExpr) (result interface {
+}, err error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__evalExtractExpr_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v\n", expr)
+	result, err = ec.gologoo__evalExtractExpr_71e383cb26f1785bb4841431523136cf(expr)
+	log.Printf("Output: %v %v\n", result, err)
+	return
+}
+func (ec evalContext) evalAtTimeZoneExpr(expr spansql.AtTimeZoneExpr) (result interface {
+}, err error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__evalAtTimeZoneExpr_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v\n", expr)
+	result, err = ec.gologoo__evalAtTimeZoneExpr_71e383cb26f1785bb4841431523136cf(expr)
+	log.Printf("Output: %v %v\n", result, err)
+	return
+}
+func evalLiteralOrParam(lop spansql.LiteralOrParam, params queryParams) (int64, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__evalLiteralOrParam_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v %v\n", lop, params)
+	r0, r1 := gologoo__evalLiteralOrParam_71e383cb26f1785bb4841431523136cf(lop, params)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func paramAsInteger(p spansql.Param, params queryParams) (int64, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__paramAsInteger_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v %v\n", p, params)
+	r0, r1 := gologoo__paramAsInteger_71e383cb26f1785bb4841431523136cf(p, params)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func compareValLists(a, b []interface {
+}, desc []bool) int {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__compareValLists_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v %v %v\n", a, b, desc)
+	r0 := gologoo__compareValLists_71e383cb26f1785bb4841431523136cf(a, b, desc)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func compareVals(x, y interface {
+}) int {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__compareVals_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v %v\n", x, y)
+	r0 := gologoo__compareVals_71e383cb26f1785bb4841431523136cf(x, y)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (ec evalContext) colInfo(e spansql.Expr) (colInfo, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__colInfo_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v\n", e)
+	r0, r1 := ec.gologoo__colInfo_71e383cb26f1785bb4841431523136cf(e)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (ec evalContext) arithColType(ao spansql.ArithOp) (spansql.Type, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__arithColType_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v\n", ao)
+	r0, r1 := ec.gologoo__arithColType_71e383cb26f1785bb4841431523136cf(ao)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func pathExpEqual(a, b spansql.PathExp) bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__pathExpEqual_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v %v\n", a, b)
+	r0 := gologoo__pathExpEqual_71e383cb26f1785bb4841431523136cf(a, b)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func evalLike(str, pat string) bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__evalLike_71e383cb26f1785bb4841431523136cf")
+	log.Printf("Input : %v %v\n", str, pat)
+	r0 := gologoo__evalLike_71e383cb26f1785bb4841431523136cf(str, pat)
+	log.Printf("Output: %v\n", r0)
+	return r0
 }

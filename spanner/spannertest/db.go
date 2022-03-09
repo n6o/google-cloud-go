@@ -1,25 +1,4 @@
-/*
-Copyright 2019 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package spannertest
-
-// This file contains the implementation of the Spanner fake itself,
-// namely the part behind the RPC interface.
-
-// TODO: missing transactionality in a serious way!
 
 import (
 	"bytes"
@@ -30,94 +9,61 @@ import (
 	"strings"
 	"sync"
 	"time"
-
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
 	structpb "github.com/golang/protobuf/ptypes/struct"
-
 	"cloud.google.com/go/civil"
 	"cloud.google.com/go/spanner/spansql"
+	"log"
 )
 
 type database struct {
 	mu      sync.Mutex
-	lastTS  time.Time // last commit timestamp
+	lastTS  time.Time
 	tables  map[spansql.ID]*table
-	indexes map[spansql.ID]struct{} // only record their existence
-	views   map[spansql.ID]struct{} // only record their existence
-
-	rwMu sync.Mutex // held by read-write transactions
+	indexes map[spansql.ID]struct {
+	}
+	views map[spansql.ID]struct {
+	}
+	rwMu sync.Mutex
 }
-
 type table struct {
-	mu sync.Mutex
-
-	// Information about the table columns.
-	// They are reordered on table creation so the primary key columns come first.
+	mu        sync.Mutex
 	cols      []colInfo
-	colIndex  map[spansql.ID]int         // col name to index
-	origIndex map[spansql.ID]int         // original index of each column upon construction
-	pkCols    int                        // number of primary key columns (may be 0)
-	pkDesc    []bool                     // whether each primary key column is in descending order
-	rdw       *spansql.RowDeletionPolicy // RowDeletionPolicy of this table (may be nil)
-
-	// Rows are stored in primary key order.
-	rows []row
+	colIndex  map[spansql.ID]int
+	origIndex map[spansql.ID]int
+	pkCols    int
+	pkDesc    []bool
+	rdw       *spansql.RowDeletionPolicy
+	rows      []row
 }
-
-// colInfo represents information about a column in a table or result set.
 type colInfo struct {
 	Name      spansql.ID
 	Type      spansql.Type
 	Generated spansql.Expr
-	NotNull   bool            // only set for table columns
-	AggIndex  int             // Index+1 of SELECT list for which this is an aggregate value.
-	Alias     spansql.PathExp // an alternate name for this column (result sets only)
+	NotNull   bool
+	AggIndex  int
+	Alias     spansql.PathExp
 }
 
-// commitTimestampSentinel is a sentinel value for TIMESTAMP fields with allow_commit_timestamp=true.
-// It is accepted, but never stored.
-var commitTimestampSentinel = &struct{}{}
+var commitTimestampSentinel = &struct {
+}{}
 
-// transaction records information about a running transaction.
-// This is not safe for concurrent use.
 type transaction struct {
-	// readOnly is whether this transaction was constructed
-	// for read-only use, and should yield errors if used
-	// to perform a mutation.
-	readOnly bool
-
+	readOnly        bool
 	d               *database
-	commitTimestamp time.Time // not set if readOnly
-	unlock          func()    // may be nil
+	commitTimestamp time.Time
+	unlock          func()
 }
 
-func (d *database) NewReadOnlyTransaction() *transaction {
-	return &transaction{
-		readOnly: true,
-	}
+func (d *database) gologoo__NewReadOnlyTransaction_48b215e0cf779586a3b42f53798ab710() *transaction {
+	return &transaction{readOnly: true}
 }
-
-func (d *database) NewTransaction() *transaction {
-	return &transaction{
-		d: d,
-	}
+func (d *database) gologoo__NewTransaction_48b215e0cf779586a3b42f53798ab710() *transaction {
+	return &transaction{d: d}
 }
-
-// Start starts the transaction and commits to a specific commit timestamp.
-// This also locks out any other read-write transaction on this database
-// until Commit/Rollback are called.
-func (tx *transaction) Start() {
-	// Commit timestamps are only guaranteed to be unique
-	// when transactions write to overlapping sets of fields.
-	// This simulated database exceeds that guarantee.
-
-	// Grab rwMu for the duration of this transaction.
-	// Take it before d.mu so we don't hold that lock
-	// while waiting for d.rwMu, which is held for longer.
+func (tx *transaction) gologoo__Start_48b215e0cf779586a3b42f53798ab710() {
 	tx.d.rwMu.Lock()
-
 	tx.d.mu.Lock()
 	const tsRes = 1 * time.Microsecond
 	now := time.Now().UTC().Truncate(tsRes)
@@ -126,69 +72,48 @@ func (tx *transaction) Start() {
 	}
 	tx.d.lastTS = now
 	tx.d.mu.Unlock()
-
 	tx.commitTimestamp = now
 	tx.unlock = tx.d.rwMu.Unlock
 }
-
-func (tx *transaction) checkMutable() error {
+func (tx *transaction) gologoo__checkMutable_48b215e0cf779586a3b42f53798ab710() error {
 	if tx.readOnly {
-		// TODO: is this the right status?
 		return status.Errorf(codes.InvalidArgument, "transaction is read-only")
 	}
 	return nil
 }
-
-func (tx *transaction) Commit() (time.Time, error) {
+func (tx *transaction) gologoo__Commit_48b215e0cf779586a3b42f53798ab710() (time.Time, error) {
 	if tx.unlock != nil {
 		tx.unlock()
 	}
 	return tx.commitTimestamp, nil
 }
-
-func (tx *transaction) Rollback() {
+func (tx *transaction) gologoo__Rollback_48b215e0cf779586a3b42f53798ab710() {
 	if tx.unlock != nil {
 		tx.unlock()
 	}
-	// TODO: actually rollback
 }
 
-/*
-row represents a list of data elements.
+type row []interface {
+}
 
-The mapping between Spanner types and Go types internal to this package are:
-	BOOL		bool
-	INT64		int64
-	FLOAT64		float64
-	STRING		string
-	BYTES		[]byte
-	DATE		civil.Date
-	TIMESTAMP	time.Time (location set to UTC)
-	ARRAY<T>	[]interface{}
-	STRUCT		TODO
-*/
-type row []interface{}
-
-func (r row) copyDataElem(index int) interface{} {
+func (r row) gologoo__copyDataElem_48b215e0cf779586a3b42f53798ab710(index int) interface {
+} {
 	v := r[index]
-	if is, ok := v.([]interface{}); ok {
-		// Deep-copy array values.
-		v = append([]interface{}(nil), is...)
+	if is, ok := v.([]interface {
+	}); ok {
+		v = append([]interface {
+		}(nil), is...)
 	}
 	return v
 }
-
-// copyData returns a copy of the row.
-func (r row) copyAllData() row {
+func (r row) gologoo__copyAllData_48b215e0cf779586a3b42f53798ab710() row {
 	dst := make(row, 0, len(r))
 	for i := range r {
 		dst = append(dst, r.copyDataElem(i))
 	}
 	return dst
 }
-
-// copyData returns a copy of a subset of a row.
-func (r row) copyData(indexes []int) row {
+func (r row) gologoo__copyData_48b215e0cf779586a3b42f53798ab710(indexes []int) row {
 	if len(indexes) == 0 {
 		return nil
 	}
@@ -198,63 +123,43 @@ func (r row) copyData(indexes []int) row {
 	}
 	return dst
 }
-
-func (d *database) LastCommitTimestamp() time.Time {
+func (d *database) gologoo__LastCommitTimestamp_48b215e0cf779586a3b42f53798ab710() time.Time {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.lastTS
 }
-
-func (d *database) GetDDL() []spansql.DDLStmt {
-	// This lacks fidelity, but captures the details we support.
+func (d *database) gologoo__GetDDL_48b215e0cf779586a3b42f53798ab710() []spansql.DDLStmt {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-
 	var stmts []spansql.DDLStmt
-
 	for name, t := range d.tables {
-		ct := &spansql.CreateTable{
-			Name: name,
-		}
-
+		ct := &spansql.CreateTable{Name: name}
 		t.mu.Lock()
 		for i, col := range t.cols {
-			ct.Columns = append(ct.Columns, spansql.ColumnDef{
-				Name:    col.Name,
-				Type:    col.Type,
-				NotNull: col.NotNull,
-				// TODO: AllowCommitTimestamp
-			})
+			ct.Columns = append(ct.Columns, spansql.ColumnDef{Name: col.Name, Type: col.Type, NotNull: col.NotNull})
 			if i < t.pkCols {
-				ct.PrimaryKey = append(ct.PrimaryKey, spansql.KeyPart{
-					Column: col.Name,
-					Desc:   t.pkDesc[i],
-				})
+				ct.PrimaryKey = append(ct.PrimaryKey, spansql.KeyPart{Column: col.Name, Desc: t.pkDesc[i]})
 			}
 		}
 		t.mu.Unlock()
-
 		stmts = append(stmts, ct)
 	}
-
 	return stmts
 }
-
-func (d *database) ApplyDDL(stmt spansql.DDLStmt) *status.Status {
+func (d *database) gologoo__ApplyDDL_48b215e0cf779586a3b42f53798ab710(stmt spansql.DDLStmt) *status.Status {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-
-	// Lazy init.
 	if d.tables == nil {
 		d.tables = make(map[spansql.ID]*table)
 	}
 	if d.indexes == nil {
-		d.indexes = make(map[spansql.ID]struct{})
+		d.indexes = make(map[spansql.ID]struct {
+		})
 	}
 	if d.views == nil {
-		d.views = make(map[spansql.ID]struct{})
+		d.views = make(map[spansql.ID]struct {
+		})
 	}
-
 	switch stmt := stmt.(type) {
 	default:
 		return status.Newf(codes.Unimplemented, "unhandled DDL statement type %T", stmt)
@@ -265,16 +170,10 @@ func (d *database) ApplyDDL(stmt spansql.DDLStmt) *status.Status {
 		if len(stmt.PrimaryKey) == 0 {
 			return status.Newf(codes.InvalidArgument, "table %s has no primary key", stmt.Name)
 		}
-
-		// TODO: check stmt.Interleave details.
-
-		// Record original column ordering.
 		orig := make(map[spansql.ID]int)
 		for i, col := range stmt.Columns {
 			orig[col.Name] = i
 		}
-
-		// Move primary keys first, preserving their order.
 		pk := make(map[spansql.ID]int)
 		var pkDesc []bool
 		for i, kp := range stmt.PrimaryKey {
@@ -285,13 +184,7 @@ func (d *database) ApplyDDL(stmt spansql.DDLStmt) *status.Status {
 			a, b := pk[stmt.Columns[i].Name], pk[stmt.Columns[j].Name]
 			return a < b
 		})
-
-		t := &table{
-			colIndex:  make(map[spansql.ID]int),
-			origIndex: orig,
-			pkCols:    len(pk),
-			pkDesc:    pkDesc,
-		}
+		t := &table{colIndex: make(map[spansql.ID]int), origIndex: orig, pkCols: len(pk), pkDesc: pkDesc}
 		for _, cd := range stmt.Columns {
 			if st := t.addColumn(cd, true); st.Code() != codes.OK {
 				return st
@@ -309,7 +202,8 @@ func (d *database) ApplyDDL(stmt spansql.DDLStmt) *status.Status {
 		if _, ok := d.indexes[stmt.Name]; ok {
 			return status.Newf(codes.AlreadyExists, "index %s already exists", stmt.Name)
 		}
-		d.indexes[stmt.Name] = struct{}{}
+		d.indexes[stmt.Name] = struct {
+		}{}
 		return nil
 	case *spansql.CreateView:
 		if !stmt.OrReplace {
@@ -317,13 +211,13 @@ func (d *database) ApplyDDL(stmt spansql.DDLStmt) *status.Status {
 				return status.Newf(codes.AlreadyExists, "view %s already exists", stmt.Name)
 			}
 		}
-		d.views[stmt.Name] = struct{}{}
+		d.views[stmt.Name] = struct {
+		}{}
 		return nil
 	case *spansql.DropTable:
 		if _, ok := d.tables[stmt.Name]; !ok {
 			return status.Newf(codes.NotFound, "no table named %s", stmt.Name)
 		}
-		// TODO: check for indexes on this table.
 		delete(d.tables, stmt.Name)
 		return nil
 	case *spansql.DropIndex:
@@ -378,59 +272,47 @@ func (d *database) ApplyDDL(stmt spansql.DDLStmt) *status.Status {
 			return nil
 		}
 	}
-
 }
-
-func (d *database) table(tbl spansql.ID) (*table, error) {
+func (d *database) gologoo__table_48b215e0cf779586a3b42f53798ab710(tbl spansql.ID) (*table, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-
 	t, ok := d.tables[tbl]
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no table named %s", tbl)
 	}
 	return t, nil
 }
-
-// writeValues executes a write option (Insert, Update, etc.).
-func (d *database) writeValues(tx *transaction, tbl spansql.ID, cols []spansql.ID, values []*structpb.ListValue, f func(t *table, colIndexes []int, r row) error) error {
+func (d *database) gologoo__writeValues_48b215e0cf779586a3b42f53798ab710(tx *transaction, tbl spansql.ID, cols []spansql.ID, values []*structpb.ListValue, f func(t *table, colIndexes []int, r row) error) error {
 	if err := tx.checkMutable(); err != nil {
 		return err
 	}
-
 	t, err := d.table(tbl)
 	if err != nil {
 		return err
 	}
-
 	t.mu.Lock()
 	defer t.mu.Unlock()
-
 	colIndexes, err := t.colIndexes(cols)
 	if err != nil {
 		return err
 	}
-	revIndex := make(map[int]int) // table index to col index
+	revIndex := make(map[int]int)
 	for j, i := range colIndexes {
 		revIndex[i] = j
 	}
-
 	for pki := 0; pki < t.pkCols; pki++ {
 		_, ok := revIndex[pki]
 		if !ok {
 			return status.Errorf(codes.InvalidArgument, "primary key column %s not included in write", t.cols[pki].Name)
 		}
 	}
-
 	for _, vs := range values {
 		if len(vs.Values) != len(colIndexes) {
 			return status.Errorf(codes.InvalidArgument, "row of %d values can't be written to %d columns", len(vs.Values), len(colIndexes))
 		}
-
 		r := make(row, len(t.cols))
 		for j, v := range vs.Values {
 			i := colIndexes[j]
-
 			if t.cols[i].Generated != nil {
 				return status.Error(codes.InvalidArgument, "values can't be written to a generated column")
 			}
@@ -444,33 +326,18 @@ func (d *database) writeValues(tx *transaction, tbl spansql.ID, cols []spansql.I
 			if x == nil && t.cols[i].NotNull {
 				return status.Errorf(codes.FailedPrecondition, "%s must not be NULL in table %s", t.cols[i].Name, tbl)
 			}
-
 			r[i] = x
 		}
-		// TODO: enforce that provided timestamp for commit_timestamp=true columns
-		// are not ahead of the transaction's commit timestamp.
-
 		if err := f(t, colIndexes, r); err != nil {
 			return err
 		}
-
-		// Get row again after potential update merge to ensure we compute
-		// generated columns with fresh data.
 		pk := r[:t.pkCols]
 		rowNum, found := t.rowForPK(pk)
-		// This should never fail as the row was just inserted.
 		if !found {
 			return status.Error(codes.Internal, "row failed to be inserted")
 		}
 		row := t.rows[rowNum]
-		ec := evalContext{
-			cols: t.cols,
-			row:  row,
-		}
-
-		// TODO: We would need to do a topological sort on dependencies
-		// (i.e. what other columns the expression references) to ensure we
-		// can handle generated columns which reference other generated columns
+		ec := evalContext{cols: t.cols, row: row}
 		for i, col := range t.cols {
 			if col.Generated != nil {
 				res, err := ec.evalExpr(col.Generated)
@@ -481,11 +348,9 @@ func (d *database) writeValues(tx *transaction, tbl spansql.ID, cols []spansql.I
 			}
 		}
 	}
-
 	return nil
 }
-
-func (d *database) Insert(tx *transaction, tbl spansql.ID, cols []spansql.ID, values []*structpb.ListValue) error {
+func (d *database) gologoo__Insert_48b215e0cf779586a3b42f53798ab710(tx *transaction, tbl spansql.ID, cols []spansql.ID, values []*structpb.ListValue) error {
 	return d.writeValues(tx, tbl, cols, values, func(t *table, colIndexes []int, r row) error {
 		pk := r[:t.pkCols]
 		rowNum, found := t.rowForPK(pk)
@@ -496,8 +361,7 @@ func (d *database) Insert(tx *transaction, tbl spansql.ID, cols []spansql.ID, va
 		return nil
 	})
 }
-
-func (d *database) Update(tx *transaction, tbl spansql.ID, cols []spansql.ID, values []*structpb.ListValue) error {
+func (d *database) gologoo__Update_48b215e0cf779586a3b42f53798ab710(tx *transaction, tbl spansql.ID, cols []spansql.ID, values []*structpb.ListValue) error {
 	return d.writeValues(tx, tbl, cols, values, func(t *table, colIndexes []int, r row) error {
 		if t.pkCols == 0 {
 			return status.Errorf(codes.InvalidArgument, "cannot update table %s with no columns in primary key", tbl)
@@ -505,26 +369,21 @@ func (d *database) Update(tx *transaction, tbl spansql.ID, cols []spansql.ID, va
 		pk := r[:t.pkCols]
 		rowNum, found := t.rowForPK(pk)
 		if !found {
-			// TODO: is this the right way to return `NOT_FOUND`?
 			return status.Errorf(codes.NotFound, "row not in table")
 		}
-
 		for _, i := range colIndexes {
 			t.rows[rowNum][i] = r[i]
 		}
 		return nil
 	})
 }
-
-func (d *database) InsertOrUpdate(tx *transaction, tbl spansql.ID, cols []spansql.ID, values []*structpb.ListValue) error {
+func (d *database) gologoo__InsertOrUpdate_48b215e0cf779586a3b42f53798ab710(tx *transaction, tbl spansql.ID, cols []spansql.ID, values []*structpb.ListValue) error {
 	return d.writeValues(tx, tbl, cols, values, func(t *table, colIndexes []int, r row) error {
 		pk := r[:t.pkCols]
 		rowNum, found := t.rowForPK(pk)
 		if !found {
-			// New row; do an insert.
 			t.insertRow(rowNum, r)
 		} else {
-			// Existing row; do an update.
 			for _, i := range colIndexes {
 				t.rows[rowNum][i] = r[i]
 			}
@@ -532,40 +391,31 @@ func (d *database) InsertOrUpdate(tx *transaction, tbl spansql.ID, cols []spansq
 		return nil
 	})
 }
-
-// TODO: Replace
-
-func (d *database) Delete(tx *transaction, table spansql.ID, keys []*structpb.ListValue, keyRanges keyRangeList, all bool) error {
+func (d *database) gologoo__Delete_48b215e0cf779586a3b42f53798ab710(tx *transaction, table spansql.ID, keys []*structpb.ListValue, keyRanges keyRangeList, all bool) error {
 	if err := tx.checkMutable(); err != nil {
 		return err
 	}
-
 	t, err := d.table(table)
 	if err != nil {
 		return err
 	}
-
 	t.mu.Lock()
 	defer t.mu.Unlock()
-
 	if all {
 		t.rows = nil
 		return nil
 	}
-
 	for _, key := range keys {
 		pk, err := t.primaryKey(key.Values)
 		if err != nil {
 			return err
 		}
-		// Not an error if the key does not exist.
 		rowNum, found := t.rowForPK(pk)
 		if found {
 			copy(t.rows[rowNum:], t.rows[rowNum+1:])
 			t.rows = t.rows[:len(t.rows)-1]
 		}
 	}
-
 	for _, r := range keyRanges {
 		r.startKey, err = t.primaryKeyPrefix(r.start.Values)
 		if err != nil {
@@ -581,54 +431,36 @@ func (d *database) Delete(tx *transaction, table spansql.ID, keys []*structpb.Li
 			t.rows = t.rows[:len(t.rows)-n]
 		}
 	}
-
 	return nil
 }
-
-// readTable executes a read option (Read, ReadAll).
-func (d *database) readTable(table spansql.ID, cols []spansql.ID, f func(*table, *rawIter, []int) error) (*rawIter, error) {
+func (d *database) gologoo__readTable_48b215e0cf779586a3b42f53798ab710(table spansql.ID, cols []spansql.ID, f func(*table, *rawIter, []int) error) (*rawIter, error) {
 	t, err := d.table(table)
 	if err != nil {
 		return nil, err
 	}
-
 	t.mu.Lock()
 	defer t.mu.Unlock()
-
 	colIndexes, err := t.colIndexes(cols)
 	if err != nil {
 		return nil, err
 	}
-
 	ri := &rawIter{}
 	for _, i := range colIndexes {
 		ri.cols = append(ri.cols, t.cols[i])
 	}
 	return ri, f(t, ri, colIndexes)
 }
-
-func (d *database) Read(tbl spansql.ID, cols []spansql.ID, keys []*structpb.ListValue, keyRanges keyRangeList, limit int64) (rowIter, error) {
-	// The real Cloud Spanner returns an error if the key set is empty by definition.
-	// That doesn't seem to be well-defined, but it is a common error to attempt a read with no keys,
-	// so catch that here and return a representative error.
+func (d *database) gologoo__Read_48b215e0cf779586a3b42f53798ab710(tbl spansql.ID, cols []spansql.ID, keys []*structpb.ListValue, keyRanges keyRangeList, limit int64) (rowIter, error) {
 	if len(keys) == 0 && len(keyRanges) == 0 {
 		return nil, status.Error(codes.Unimplemented, "Cloud Spanner does not support reading no keys")
 	}
-
 	return d.readTable(tbl, cols, func(t *table, ri *rawIter, colIndexes []int) error {
-		// "If the same key is specified multiple times in the set (for
-		// example if two ranges, two keys, or a key and a range
-		// overlap), Cloud Spanner behaves as if the key were only
-		// specified once."
-		done := make(map[int]bool) // row numbers we've included in ri.
-
-		// Specific keys.
+		done := make(map[int]bool)
 		for _, key := range keys {
 			pk, err := t.primaryKey(key.Values)
 			if err != nil {
 				return err
 			}
-			// Not an error if the key does not exist.
 			rowNum, found := t.rowForPK(pk)
 			if !found {
 				continue
@@ -642,8 +474,6 @@ func (d *database) Read(tbl spansql.ID, cols []spansql.ID, keys []*structpb.List
 				return nil
 			}
 		}
-
-		// Key ranges.
 		for _, r := range keyRanges {
 			var err error
 			r.startKey, err = t.primaryKeyPrefix(r.start.Values)
@@ -666,12 +496,10 @@ func (d *database) Read(tbl spansql.ID, cols []spansql.ID, keys []*structpb.List
 				}
 			}
 		}
-
 		return nil
 	})
 }
-
-func (d *database) ReadAll(tbl spansql.ID, cols []spansql.ID, limit int64) (*rawIter, error) {
+func (d *database) gologoo__ReadAll_48b215e0cf779586a3b42f53798ab710(tbl spansql.ID, cols []spansql.ID, limit int64) (*rawIter, error) {
 	return d.readTable(tbl, cols, func(t *table, ri *rawIter, colIndexes []int) error {
 		for _, r := range t.rows {
 			ri.add(r, colIndexes)
@@ -682,30 +510,22 @@ func (d *database) ReadAll(tbl spansql.ID, cols []spansql.ID, limit int64) (*raw
 		return nil
 	})
 }
-
-func (t *table) addColumn(cd spansql.ColumnDef, newTable bool) *status.Status {
+func (t *table) gologoo__addColumn_48b215e0cf779586a3b42f53798ab710(cd spansql.ColumnDef, newTable bool) *status.Status {
 	if !newTable && cd.NotNull {
 		return status.Newf(codes.InvalidArgument, "new non-key columns cannot be NOT NULL")
 	}
-
 	if _, ok := t.colIndex[cd.Name]; ok {
 		return status.Newf(codes.AlreadyExists, "column %s already exists", cd.Name)
 	}
-
 	t.mu.Lock()
 	defer t.mu.Unlock()
-
 	if len(t.rows) > 0 {
 		if cd.NotNull {
-			// TODO: what happens in this case?
 			return status.Newf(codes.Unimplemented, "can't add NOT NULL columns to non-empty tables yet")
 		}
 		for i := range t.rows {
 			if cd.Generated != nil {
-				ec := evalContext{
-					cols: t.cols,
-					row:  t.rows[i],
-				}
+				ec := evalContext{cols: t.cols, row: t.rows[i]}
 				val, err := ec.evalExpr(cd.Generated)
 				if err != nil {
 					return status.Newf(codes.InvalidArgument, "could not backfill values for generated column: %v", err)
@@ -716,43 +536,23 @@ func (t *table) addColumn(cd spansql.ColumnDef, newTable bool) *status.Status {
 			}
 		}
 	}
-
-	t.cols = append(t.cols, colInfo{
-		Name:    cd.Name,
-		Type:    cd.Type,
-		NotNull: cd.NotNull,
-		// TODO: We should figure out what columns the Generator expression
-		// relies on and check it is valid at this time currently it will
-		// fail when writing data instead as it is the first time we
-		// evaluate the expression.
-		Generated: cd.Generated,
-	})
+	t.cols = append(t.cols, colInfo{Name: cd.Name, Type: cd.Type, NotNull: cd.NotNull, Generated: cd.Generated})
 	t.colIndex[cd.Name] = len(t.cols) - 1
 	if !newTable {
 		t.origIndex[cd.Name] = len(t.cols) - 1
 	}
-
 	return nil
 }
-
-func (t *table) dropColumn(name spansql.ID) *status.Status {
-	// Only permit dropping non-key columns that aren't part of a secondary index.
-	// We don't support indexes, so only check that it isn't part of the primary key.
-
+func (t *table) gologoo__dropColumn_48b215e0cf779586a3b42f53798ab710(name spansql.ID) *status.Status {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-
 	ci, ok := t.colIndex[name]
 	if !ok {
-		// TODO: What's the right response code?
 		return status.Newf(codes.InvalidArgument, "unknown column %q", name)
 	}
 	if ci < t.pkCols {
-		// TODO: What's the right response code?
 		return status.Newf(codes.InvalidArgument, "can't drop primary key column %q", name)
 	}
-
-	// Remove from cols and colIndex, and renumber colIndex and origIndex.
 	t.cols = append(t.cols[:ci], t.cols[ci+1:]...)
 	delete(t.colIndex, name)
 	for i, col := range t.cols {
@@ -765,90 +565,72 @@ func (t *table) dropColumn(name spansql.ID) *status.Status {
 			t.origIndex[n]--
 		}
 	}
-
-	// Drop data.
 	for i := range t.rows {
 		t.rows[i] = append(t.rows[i][:ci], t.rows[i][ci+1:]...)
 	}
-
 	return nil
 }
-
-func (t *table) alterColumn(alt spansql.AlterColumn) *status.Status {
-	// Supported changes here are:
-	//	Add NOT NULL to a non-key column, excluding ARRAY columns.
-	//	Remove NOT NULL from a non-key column.
-	//	Change a STRING column to a BYTES column or a BYTES column to a STRING column.
-	//	Increase or decrease the length limit for a STRING or BYTES type (including to MAX).
-	//	Enable or disable commit timestamps in value and primary key columns.
-	// https://cloud.google.com/spanner/docs/schema-updates#supported-updates
-
-	// TODO: codes.InvalidArgument is used throughout here for reporting errors,
-	// but that has not been validated against the real Spanner.
-
+func (t *table) gologoo__alterColumn_48b215e0cf779586a3b42f53798ab710(alt spansql.AlterColumn) *status.Status {
 	sct, ok := alt.Alteration.(spansql.SetColumnType)
 	if !ok {
 		return status.Newf(codes.InvalidArgument, "unsupported ALTER COLUMN %s", alt.SQL())
 	}
-
 	t.mu.Lock()
 	defer t.mu.Unlock()
-
 	ci, ok := t.colIndex[alt.Name]
 	if !ok {
 		return status.Newf(codes.InvalidArgument, "unknown column %q", alt.Name)
 	}
-
 	oldT, newT := t.cols[ci].Type, sct.Type
-	stringOrBytes := func(bt spansql.TypeBase) bool { return bt == spansql.String || bt == spansql.Bytes }
-
-	// First phase: Check the validity of the change.
-	// TODO: Don't permit changes to allow commit timestamps.
+	stringOrBytes := func(bt spansql.TypeBase) bool {
+		return bt == spansql.String || bt == spansql.Bytes
+	}
 	if !t.cols[ci].NotNull && sct.NotNull {
-		// Adding NOT NULL is not permitted for primary key columns or array typed columns.
 		if ci < t.pkCols {
 			return status.Newf(codes.InvalidArgument, "cannot set NOT NULL on primary key column %q", alt.Name)
 		}
 		if oldT.Array {
 			return status.Newf(codes.InvalidArgument, "cannot set NOT NULL on array-typed column %q", alt.Name)
 		}
-		// Validate that there are no NULL values.
 		for _, row := range t.rows {
 			if row[ci] == nil {
 				return status.Newf(codes.InvalidArgument, "cannot set NOT NULL on column %q that contains NULL values", alt.Name)
 			}
 		}
 	}
-	var conv func(x interface{}) interface{}
+	var conv func(x interface {
+	}) interface {
+	}
 	if stringOrBytes(oldT.Base) && stringOrBytes(newT.Base) && !oldT.Array && !newT.Array {
-		// Change between STRING and BYTES is fine, as is increasing/decreasing the length limit.
-		// TODO: This should permit array conversions too.
-		// TODO: Validate data; length limit changes should be rejected if they'd lead to data loss, for instance.
 		if oldT.Base == spansql.Bytes && newT.Base == spansql.String {
-			conv = func(x interface{}) interface{} { return string(x.([]byte)) }
+			conv = func(x interface {
+			}) interface {
+			} {
+				return string(x.([]byte))
+			}
 		} else if oldT.Base == spansql.String && newT.Base == spansql.Bytes {
-			conv = func(x interface{}) interface{} { return []byte(x.(string)) }
+			conv = func(x interface {
+			}) interface {
+			} {
+				return []byte(x.(string))
+			}
 		}
 	} else if oldT == newT {
-		// Same type; only NOT NULL changes.
-	} else { // TODO: Support other alterations.
+	} else {
 		return status.Newf(codes.InvalidArgument, "unsupported ALTER COLUMN %s", alt.SQL())
 	}
-
-	// Second phase: Make type transformations.
 	t.cols[ci].NotNull = sct.NotNull
 	t.cols[ci].Type = newT
 	if conv != nil {
 		for _, row := range t.rows {
-			if row[ci] != nil { // NULL stays as NULL.
+			if row[ci] != nil {
 				row[ci] = conv(row[ci])
 			}
 		}
 	}
 	return nil
 }
-
-func (t *table) addRowDeletionPolicy(ard spansql.AddRowDeletionPolicy) *status.Status {
+func (t *table) gologoo__addRowDeletionPolicy_48b215e0cf779586a3b42f53798ab710(ard spansql.AddRowDeletionPolicy) *status.Status {
 	_, ok := t.colIndex[ard.RowDeletionPolicy.Column]
 	if !ok {
 		return status.Newf(codes.InvalidArgument, "unknown column %q", ard.RowDeletionPolicy.Column)
@@ -859,8 +641,7 @@ func (t *table) addRowDeletionPolicy(ard spansql.AddRowDeletionPolicy) *status.S
 	t.rdw = &ard.RowDeletionPolicy
 	return nil
 }
-
-func (t *table) replaceRowDeletionPolicy(ard spansql.ReplaceRowDeletionPolicy) *status.Status {
+func (t *table) gologoo__replaceRowDeletionPolicy_48b215e0cf779586a3b42f53798ab710(ard spansql.ReplaceRowDeletionPolicy) *status.Status {
 	_, ok := t.colIndex[ard.RowDeletionPolicy.Column]
 	if !ok {
 		return status.Newf(codes.InvalidArgument, "unknown column %q", ard.RowDeletionPolicy.Column)
@@ -871,26 +652,19 @@ func (t *table) replaceRowDeletionPolicy(ard spansql.ReplaceRowDeletionPolicy) *
 	t.rdw = &ard.RowDeletionPolicy
 	return nil
 }
-
-func (t *table) dropRowDeletionPolicy(ard spansql.DropRowDeletionPolicy) *status.Status {
+func (t *table) gologoo__dropRowDeletionPolicy_48b215e0cf779586a3b42f53798ab710(ard spansql.DropRowDeletionPolicy) *status.Status {
 	if t.rdw == nil {
 		return status.New(codes.InvalidArgument, "table does not have a row deletion policy")
 	}
 	t.rdw = nil
 	return nil
 }
-
-func (t *table) insertRow(rowNum int, r row) {
+func (t *table) gologoo__insertRow_48b215e0cf779586a3b42f53798ab710(rowNum int, r row) {
 	t.rows = append(t.rows, nil)
 	copy(t.rows[rowNum+1:], t.rows[rowNum:])
 	t.rows[rowNum] = r
 }
-
-// findRange finds the rows included in the key range,
-// reporting it as a half-open interval.
-// r.startKey and r.endKey should be populated.
-func (t *table) findRange(r *keyRange) (int, int) {
-	// startRow is the first row matching the range.
+func (t *table) gologoo__findRange_48b215e0cf779586a3b42f53798ab710(r *keyRange) (int, int) {
 	startRow := sort.Search(len(t.rows), func(i int) bool {
 		return rowCmp(r.startKey, t.rows[i][:t.pkCols], t.pkDesc) <= 0
 	})
@@ -900,20 +674,15 @@ func (t *table) findRange(r *keyRange) (int, int) {
 	if !r.startClosed && rowCmp(r.startKey, t.rows[startRow][:t.pkCols], t.pkDesc) == 0 {
 		startRow++
 	}
-
-	// endRow is one more than the last row matching the range.
 	endRow := sort.Search(len(t.rows), func(i int) bool {
 		return rowCmp(r.endKey, t.rows[i][:t.pkCols], t.pkDesc) < 0
 	})
 	if !r.endClosed && rowCmp(r.endKey, t.rows[endRow-1][:t.pkCols], t.pkDesc) == 0 {
 		endRow--
 	}
-
 	return startRow, endRow
 }
-
-// colIndexes returns the indexes for the named columns.
-func (t *table) colIndexes(cols []spansql.ID) ([]int, error) {
+func (t *table) gologoo__colIndexes_48b215e0cf779586a3b42f53798ab710(cols []spansql.ID) ([]int, error) {
 	var is []int
 	for _, col := range cols {
 		i, ok := t.colIndex[col]
@@ -924,23 +693,20 @@ func (t *table) colIndexes(cols []spansql.ID) ([]int, error) {
 	}
 	return is, nil
 }
-
-// primaryKey constructs the internal representation of a primary key.
-// The list of given values must be in 1:1 correspondence with the primary key of the table.
-func (t *table) primaryKey(values []*structpb.Value) ([]interface{}, error) {
+func (t *table) gologoo__primaryKey_48b215e0cf779586a3b42f53798ab710(values []*structpb.Value) ([]interface {
+}, error) {
 	if len(values) != t.pkCols {
 		return nil, status.Errorf(codes.InvalidArgument, "primary key length mismatch: got %d values, table has %d", len(values), t.pkCols)
 	}
 	return t.primaryKeyPrefix(values)
 }
-
-// primaryKeyPrefix constructs the internal representation of a primary key prefix.
-func (t *table) primaryKeyPrefix(values []*structpb.Value) ([]interface{}, error) {
+func (t *table) gologoo__primaryKeyPrefix_48b215e0cf779586a3b42f53798ab710(values []*structpb.Value) ([]interface {
+}, error) {
 	if len(values) > t.pkCols {
 		return nil, status.Errorf(codes.InvalidArgument, "primary key length too long: got %d values, table has %d", len(values), t.pkCols)
 	}
-
-	var pk []interface{}
+	var pk []interface {
+	}
 	for i, value := range values {
 		v, err := valForType(value, t.cols[i].Type)
 		if err != nil {
@@ -950,14 +716,11 @@ func (t *table) primaryKeyPrefix(values []*structpb.Value) ([]interface{}, error
 	}
 	return pk, nil
 }
-
-// rowForPK returns the index of t.rows that holds the row for the given primary key, and true.
-// If the given primary key isn't found, it returns the row that should hold it, and false.
-func (t *table) rowForPK(pk []interface{}) (row int, found bool) {
+func (t *table) gologoo__rowForPK_48b215e0cf779586a3b42f53798ab710(pk []interface {
+}) (row int, found bool) {
 	if len(pk) != t.pkCols {
 		panic(fmt.Sprintf("primary key length mismatch: got %d values, table has %d", len(pk), t.pkCols))
 	}
-
 	i := sort.Search(len(t.rows), func(i int) bool {
 		return rowCmp(pk, t.rows[i][:t.pkCols], t.pkDesc) <= 0
 	})
@@ -966,12 +729,8 @@ func (t *table) rowForPK(pk []interface{}) (row int, found bool) {
 	}
 	return i, rowEqual(pk, t.rows[i][:t.pkCols])
 }
-
-// rowCmp compares two rows, returning -1/0/+1.
-// The desc arg indicates whether each column is in a descending order.
-// This is used for primary key matching and so doesn't support array/struct types.
-// a is permitted to be shorter than b.
-func rowCmp(a, b []interface{}, desc []bool) int {
+func gologoo__rowCmp_48b215e0cf779586a3b42f53798ab710(a, b []interface {
+}, desc []bool) int {
 	for i := 0; i < len(a); i++ {
 		if cmp := compareVals(a[i], b[i]); cmp != 0 {
 			if desc[i] {
@@ -982,10 +741,8 @@ func rowCmp(a, b []interface{}, desc []bool) int {
 	}
 	return 0
 }
-
-// rowEqual reports whether two rows are equal.
-// This doesn't support array/struct types.
-func rowEqual(a, b []interface{}) bool {
+func gologoo__rowEqual_48b215e0cf779586a3b42f53798ab710(a, b []interface {
+}) bool {
 	for i := 0; i < len(a); i++ {
 		if compareVals(a[i], b[i]) != 0 {
 			return false
@@ -993,19 +750,16 @@ func rowEqual(a, b []interface{}) bool {
 	}
 	return true
 }
-
-// valForType converts a value from its RPC form into its internal representation.
-func valForType(v *structpb.Value, t spansql.Type) (interface{}, error) {
+func gologoo__valForType_48b215e0cf779586a3b42f53798ab710(v *structpb.Value, t spansql.Type) (interface {
+}, error) {
 	if _, ok := v.Kind.(*structpb.Value_NullValue); ok {
 		return nil, nil
 	}
-
 	if lv, ok := v.Kind.(*structpb.Value_ListValue); ok && t.Array {
-		et := t // element type
+		et := t
 		et.Array = false
-
-		// Construct the non-nil slice for the list.
-		arr := make([]interface{}, 0, len(lv.ListValue.Values))
+		arr := make([]interface {
+		}, 0, len(lv.ListValue.Values))
 		for _, v := range lv.ListValue.Values {
 			x, err := valForType(v, et)
 			if err != nil {
@@ -1015,7 +769,6 @@ func valForType(v *structpb.Value, t spansql.Type) (interface{}, error) {
 		}
 		return arr, nil
 	}
-
 	switch t.Base {
 	case spansql.Bool:
 		bv, ok := v.Kind.(*structpb.Value_BoolValue)
@@ -1023,7 +776,6 @@ func valForType(v *structpb.Value, t spansql.Type) (interface{}, error) {
 			return bv.BoolValue, nil
 		}
 	case spansql.Int64:
-		// The Spanner protocol encodes int64 as a decimal string.
 		sv, ok := v.Kind.(*structpb.Value_StringValue)
 		if ok {
 			x, err := strconv.ParseInt(sv.StringValue, 10, 64)
@@ -1045,11 +797,9 @@ func valForType(v *structpb.Value, t spansql.Type) (interface{}, error) {
 	case spansql.Bytes:
 		sv, ok := v.Kind.(*structpb.Value_StringValue)
 		if ok {
-			// The Spanner protocol encodes BYTES in base64.
 			return base64.StdEncoding.DecodeString(sv.StringValue)
 		}
 	case spansql.Date:
-		// The Spanner protocol encodes DATE in RFC 3339 date format.
 		sv, ok := v.Kind.(*structpb.Value_StringValue)
 		if ok {
 			s := sv.StringValue
@@ -1060,7 +810,6 @@ func valForType(v *structpb.Value, t spansql.Type) (interface{}, error) {
 			return d, nil
 		}
 	case spansql.Timestamp:
-		// The Spanner protocol encodes TIMESTAMP in RFC 3339 timestamp format with zone Z.
 		sv, ok := v.Kind.(*structpb.Value_StringValue)
 		if ok {
 			s := sv.StringValue
@@ -1080,14 +829,12 @@ func valForType(v *structpb.Value, t spansql.Type) (interface{}, error) {
 type keyRange struct {
 	start, end             *structpb.ListValue
 	startClosed, endClosed bool
-
-	// These are populated during an operation
-	// when we know what table this keyRange applies to.
-	startKey, endKey []interface{}
+	startKey, endKey       []interface {
+	}
 }
 
-func (r *keyRange) String() string {
-	var sb bytes.Buffer // TODO: Switch to strings.Builder when we drop support for Go 1.9.
+func (r *keyRange) gologoo__String_48b215e0cf779586a3b42f53798ab710() string {
+	var sb bytes.Buffer
 	if r.startClosed {
 		sb.WriteString("[")
 	} else {
@@ -1104,9 +851,7 @@ func (r *keyRange) String() string {
 
 type keyRangeList []*keyRange
 
-// Execute runs a DML statement.
-// It returns the number of affected rows.
-func (d *database) Execute(stmt spansql.DMLStmt, params queryParams) (int, error) { // TODO: return *status.Status instead?
+func (d *database) gologoo__Execute_48b215e0cf779586a3b42f53798ab710(stmt spansql.DMLStmt, params queryParams) (int, error) {
 	switch stmt := stmt.(type) {
 	default:
 		return 0, status.Errorf(codes.Unimplemented, "unhandled DML statement type %T", stmt)
@@ -1115,17 +860,11 @@ func (d *database) Execute(stmt spansql.DMLStmt, params queryParams) (int, error
 		if err != nil {
 			return 0, err
 		}
-
 		t.mu.Lock()
 		defer t.mu.Unlock()
-
 		n := 0
 		for i := 0; i < len(t.rows); {
-			ec := evalContext{
-				cols:   t.cols,
-				row:    t.rows[i],
-				params: params,
-			}
+			ec := evalContext{cols: t.cols, row: t.rows[i], params: params}
 			b, err := ec.evalBoolExpr(stmt.Where)
 			if err != nil {
 				return 0, err
@@ -1144,16 +883,9 @@ func (d *database) Execute(stmt spansql.DMLStmt, params queryParams) (int, error
 		if err != nil {
 			return 0, err
 		}
-
 		t.mu.Lock()
 		defer t.mu.Unlock()
-
-		ec := evalContext{
-			cols:   t.cols,
-			params: params,
-		}
-
-		// Build parallel slices of destination column index and expressions to evaluate.
+		ec := evalContext{cols: t.cols, params: params}
 		var dstIndex []int
 		var expr []spansql.Expr
 		for _, ui := range stmt.Items {
@@ -1161,16 +893,14 @@ func (d *database) Execute(stmt spansql.DMLStmt, params queryParams) (int, error
 			if err != nil {
 				return 0, err
 			}
-			// TODO: Enforce "A column can appear only once in the SET clause.".
 			if i < t.pkCols {
 				return 0, status.Errorf(codes.InvalidArgument, "cannot update primary key %s", ui.Column)
 			}
 			dstIndex = append(dstIndex, i)
 			expr = append(expr, ui.Value)
 		}
-
 		n := 0
-		values := make(row, len(stmt.Items)) // scratch space for new values
+		values := make(row, len(stmt.Items))
 		for i := 0; i < len(t.rows); i++ {
 			ec.row = t.rows[i]
 			b, err := ec.evalBoolExpr(stmt.Where)
@@ -1178,9 +908,8 @@ func (d *database) Execute(stmt spansql.DMLStmt, params queryParams) (int, error
 				return 0, err
 			}
 			if b != nil && *b {
-				// Compute every update item.
 				for j := range dstIndex {
-					if expr[j] == nil { // DEFAULT
+					if expr[j] == nil {
 						values[j] = nil
 						continue
 					}
@@ -1190,7 +919,6 @@ func (d *database) Execute(stmt spansql.DMLStmt, params queryParams) (int, error
 					}
 					values[j] = v
 				}
-				// Write them to the row.
 				for j, v := range values {
 					t.rows[i][dstIndex[j]] = v
 				}
@@ -1200,8 +928,336 @@ func (d *database) Execute(stmt spansql.DMLStmt, params queryParams) (int, error
 		return n, nil
 	}
 }
-
-func parseAsDate(s string) (civil.Date, error) { return civil.ParseDate(s) }
-func parseAsTimestamp(s string) (time.Time, error) {
+func gologoo__parseAsDate_48b215e0cf779586a3b42f53798ab710(s string) (civil.Date, error) {
+	return civil.ParseDate(s)
+}
+func gologoo__parseAsTimestamp_48b215e0cf779586a3b42f53798ab710(s string) (time.Time, error) {
 	return time.Parse("2006-01-02T15:04:05.999999999Z", s)
+}
+func (d *database) NewReadOnlyTransaction() *transaction {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__NewReadOnlyTransaction_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : (none)\n")
+	r0 := d.gologoo__NewReadOnlyTransaction_48b215e0cf779586a3b42f53798ab710()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (d *database) NewTransaction() *transaction {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__NewTransaction_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : (none)\n")
+	r0 := d.gologoo__NewTransaction_48b215e0cf779586a3b42f53798ab710()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (tx *transaction) Start() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Start_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : (none)\n")
+	tx.gologoo__Start_48b215e0cf779586a3b42f53798ab710()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (tx *transaction) checkMutable() error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__checkMutable_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : (none)\n")
+	r0 := tx.gologoo__checkMutable_48b215e0cf779586a3b42f53798ab710()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (tx *transaction) Commit() (time.Time, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Commit_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : (none)\n")
+	r0, r1 := tx.gologoo__Commit_48b215e0cf779586a3b42f53798ab710()
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (tx *transaction) Rollback() {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Rollback_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : (none)\n")
+	tx.gologoo__Rollback_48b215e0cf779586a3b42f53798ab710()
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (r row) copyDataElem(index int) interface {
+} {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__copyDataElem_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v\n", index)
+	r0 := r.gologoo__copyDataElem_48b215e0cf779586a3b42f53798ab710(index)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (r row) copyAllData() row {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__copyAllData_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : (none)\n")
+	r0 := r.gologoo__copyAllData_48b215e0cf779586a3b42f53798ab710()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (r row) copyData(indexes []int) row {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__copyData_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v\n", indexes)
+	r0 := r.gologoo__copyData_48b215e0cf779586a3b42f53798ab710(indexes)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (d *database) LastCommitTimestamp() time.Time {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__LastCommitTimestamp_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : (none)\n")
+	r0 := d.gologoo__LastCommitTimestamp_48b215e0cf779586a3b42f53798ab710()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (d *database) GetDDL() []spansql.DDLStmt {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__GetDDL_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : (none)\n")
+	r0 := d.gologoo__GetDDL_48b215e0cf779586a3b42f53798ab710()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (d *database) ApplyDDL(stmt spansql.DDLStmt) *status.Status {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__ApplyDDL_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v\n", stmt)
+	r0 := d.gologoo__ApplyDDL_48b215e0cf779586a3b42f53798ab710(stmt)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (d *database) table(tbl spansql.ID) (*table, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__table_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v\n", tbl)
+	r0, r1 := d.gologoo__table_48b215e0cf779586a3b42f53798ab710(tbl)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (d *database) writeValues(tx *transaction, tbl spansql.ID, cols []spansql.ID, values []*structpb.ListValue, f func(t *table, colIndexes []int, r row) error) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__writeValues_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v %v %v %v %v\n", tx, tbl, cols, values, f)
+	r0 := d.gologoo__writeValues_48b215e0cf779586a3b42f53798ab710(tx, tbl, cols, values, f)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (d *database) Insert(tx *transaction, tbl spansql.ID, cols []spansql.ID, values []*structpb.ListValue) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Insert_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v %v %v %v\n", tx, tbl, cols, values)
+	r0 := d.gologoo__Insert_48b215e0cf779586a3b42f53798ab710(tx, tbl, cols, values)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (d *database) Update(tx *transaction, tbl spansql.ID, cols []spansql.ID, values []*structpb.ListValue) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Update_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v %v %v %v\n", tx, tbl, cols, values)
+	r0 := d.gologoo__Update_48b215e0cf779586a3b42f53798ab710(tx, tbl, cols, values)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (d *database) InsertOrUpdate(tx *transaction, tbl spansql.ID, cols []spansql.ID, values []*structpb.ListValue) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__InsertOrUpdate_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v %v %v %v\n", tx, tbl, cols, values)
+	r0 := d.gologoo__InsertOrUpdate_48b215e0cf779586a3b42f53798ab710(tx, tbl, cols, values)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (d *database) Delete(tx *transaction, table spansql.ID, keys []*structpb.ListValue, keyRanges keyRangeList, all bool) error {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Delete_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v %v %v %v %v\n", tx, table, keys, keyRanges, all)
+	r0 := d.gologoo__Delete_48b215e0cf779586a3b42f53798ab710(tx, table, keys, keyRanges, all)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (d *database) readTable(table spansql.ID, cols []spansql.ID, f func(*table, *rawIter, []int) error) (*rawIter, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__readTable_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v %v %v\n", table, cols, f)
+	r0, r1 := d.gologoo__readTable_48b215e0cf779586a3b42f53798ab710(table, cols, f)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (d *database) Read(tbl spansql.ID, cols []spansql.ID, keys []*structpb.ListValue, keyRanges keyRangeList, limit int64) (rowIter, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Read_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v %v %v %v %v\n", tbl, cols, keys, keyRanges, limit)
+	r0, r1 := d.gologoo__Read_48b215e0cf779586a3b42f53798ab710(tbl, cols, keys, keyRanges, limit)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (d *database) ReadAll(tbl spansql.ID, cols []spansql.ID, limit int64) (*rawIter, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__ReadAll_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v %v %v\n", tbl, cols, limit)
+	r0, r1 := d.gologoo__ReadAll_48b215e0cf779586a3b42f53798ab710(tbl, cols, limit)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (t *table) addColumn(cd spansql.ColumnDef, newTable bool) *status.Status {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addColumn_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v %v\n", cd, newTable)
+	r0 := t.gologoo__addColumn_48b215e0cf779586a3b42f53798ab710(cd, newTable)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (t *table) dropColumn(name spansql.ID) *status.Status {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__dropColumn_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v\n", name)
+	r0 := t.gologoo__dropColumn_48b215e0cf779586a3b42f53798ab710(name)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (t *table) alterColumn(alt spansql.AlterColumn) *status.Status {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__alterColumn_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v\n", alt)
+	r0 := t.gologoo__alterColumn_48b215e0cf779586a3b42f53798ab710(alt)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (t *table) addRowDeletionPolicy(ard spansql.AddRowDeletionPolicy) *status.Status {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__addRowDeletionPolicy_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v\n", ard)
+	r0 := t.gologoo__addRowDeletionPolicy_48b215e0cf779586a3b42f53798ab710(ard)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (t *table) replaceRowDeletionPolicy(ard spansql.ReplaceRowDeletionPolicy) *status.Status {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__replaceRowDeletionPolicy_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v\n", ard)
+	r0 := t.gologoo__replaceRowDeletionPolicy_48b215e0cf779586a3b42f53798ab710(ard)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (t *table) dropRowDeletionPolicy(ard spansql.DropRowDeletionPolicy) *status.Status {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__dropRowDeletionPolicy_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v\n", ard)
+	r0 := t.gologoo__dropRowDeletionPolicy_48b215e0cf779586a3b42f53798ab710(ard)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (t *table) insertRow(rowNum int, r row) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__insertRow_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v %v\n", rowNum, r)
+	t.gologoo__insertRow_48b215e0cf779586a3b42f53798ab710(rowNum, r)
+	log.Printf("🚚 Output: %v\n", "(none)")
+	return
+}
+func (t *table) findRange(r *keyRange) (int, int) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__findRange_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v\n", r)
+	r0, r1 := t.gologoo__findRange_48b215e0cf779586a3b42f53798ab710(r)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (t *table) colIndexes(cols []spansql.ID) ([]int, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__colIndexes_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v\n", cols)
+	r0, r1 := t.gologoo__colIndexes_48b215e0cf779586a3b42f53798ab710(cols)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (t *table) primaryKey(values []*structpb.Value) ([]interface {
+}, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__primaryKey_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v\n", values)
+	r0, r1 := t.gologoo__primaryKey_48b215e0cf779586a3b42f53798ab710(values)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (t *table) primaryKeyPrefix(values []*structpb.Value) ([]interface {
+}, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__primaryKeyPrefix_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v\n", values)
+	r0, r1 := t.gologoo__primaryKeyPrefix_48b215e0cf779586a3b42f53798ab710(values)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (t *table) rowForPK(pk []interface {
+}) (row int, found bool) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__rowForPK_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v\n", pk)
+	row, found = t.gologoo__rowForPK_48b215e0cf779586a3b42f53798ab710(pk)
+	log.Printf("Output: %v %v\n", row, found)
+	return
+}
+func rowCmp(a, b []interface {
+}, desc []bool) int {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__rowCmp_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v %v %v\n", a, b, desc)
+	r0 := gologoo__rowCmp_48b215e0cf779586a3b42f53798ab710(a, b, desc)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func rowEqual(a, b []interface {
+}) bool {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__rowEqual_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v %v\n", a, b)
+	r0 := gologoo__rowEqual_48b215e0cf779586a3b42f53798ab710(a, b)
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func valForType(v *structpb.Value, t spansql.Type) (interface {
+}, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__valForType_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v %v\n", v, t)
+	r0, r1 := gologoo__valForType_48b215e0cf779586a3b42f53798ab710(v, t)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func (r *keyRange) String() string {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__String_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : (none)\n")
+	r0 := r.gologoo__String_48b215e0cf779586a3b42f53798ab710()
+	log.Printf("Output: %v\n", r0)
+	return r0
+}
+func (d *database) Execute(stmt spansql.DMLStmt, params queryParams) (int, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__Execute_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v %v\n", stmt, params)
+	r0, r1 := d.gologoo__Execute_48b215e0cf779586a3b42f53798ab710(stmt, params)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func parseAsDate(s string) (civil.Date, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__parseAsDate_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v\n", s)
+	r0, r1 := gologoo__parseAsDate_48b215e0cf779586a3b42f53798ab710(s)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
+}
+func parseAsTimestamp(s string) (time.Time, error) {
+	log.SetFlags(19)
+	log.Printf("📨 Call %s\n", "gologoo__parseAsTimestamp_48b215e0cf779586a3b42f53798ab710")
+	log.Printf("Input : %v\n", s)
+	r0, r1 := gologoo__parseAsTimestamp_48b215e0cf779586a3b42f53798ab710(s)
+	log.Printf("Output: %v %v\n", r0, r1)
+	return r0, r1
 }
